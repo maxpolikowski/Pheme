@@ -1,0 +1,17 @@
+[
+  {
+    "username": "admin",
+    "password": "$2b$10$7CV62lEtksbaiN5jK8j/oeUo262f0.jPpii7G75eOqDhE2ZCMq1uu",
+    "role": "admin",
+    "loginAttempts": 0,
+    "lockUntil": null
+  },
+  {
+    "username": "test",
+    "password": "$2b$10$.QVg13abADjNpjt/mfje5.x/iedlU/TurZvDA.EThAzI4aItW2rJO",
+    "role": "user",
+    "loginAttempts": 0,
+    "lockUntil": 1777056844806,
+    "attemptsWindowStart": 1777056168625
+  }
+]

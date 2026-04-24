@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pheme - System dla Studentów</title>
+
+    <style>
+        :root {
+            --primary-green: #00ce52;
+            --bg-gray: #e0e0e0;
+            --dark-gray: #333333;
+            --red-header: #ff3b3b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-gray);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .header-bar {
+            width: 100%;
+            background: linear-gradient(to right, #ffffff, var(--red-header));
+            text-align: center;
+            padding: 10px 0;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1000px;
+            margin-top: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        input {
+            width: calc(100% - 24px);
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: var(--primary-green);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.2s;
+            margin: 5px;
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+
+        .nav-menu {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .nav-btn {
+            background: var(--dark-gray);
+            min-width: 100px;
+        }
+
+        #adminControls {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .hidden { 
+            display: none !important; 
+        }
+
+        .admin-btn {
+            background-color: #555;
+            width: auto;
+        }
+
+        .user-list {
+            text-align: left;
+            list-style: none;
+            padding: 0;
+            margin-top: 20px;
+        }
+
+        .user-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .del-btn {
+            background-color: #ff3b3b;
+            padding: 5px 12px;
+            font-size: 0.85rem;
+        }
+
+        #wynik {
+            color: #d32f2f;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header-bar" id="pageTitle">Pheme logowanie</div>
+
+<div class="container">
+
+    <div id="authSection" class="card">
+        <div id="loginForm">
+            <h2>Logowanie</h2>
+            <input id="l_user" placeholder="login">
+            <input id="l_pass" type="password" placeholder="hasło">
+            <button onclick="login()">Zaloguj</button>
+            <p>Nie masz konta? <a href="#" onclick="toggleAuth(true)">Rejestracja</a></p>
+        </div>
+
+        <div id="registerForm" class="hidden">
+            <h2>Rejestracja</h2>
+            <input id="r_user" placeholder="login">
+            <input id="r_pass" type="password" placeholder="hasło">
+            <button onclick="register()">Zarejestruj</button>
+            <p><a href="#" onclick="toggleAuth(false)">Powrót do logowania</a></p>
+        </div>
+        <p id="wynik"></p>
+    </div>
+
+    <div id="mainDashboard" class="hidden">
+        <div class="nav-menu">
+            <button class="nav-btn" onclick="showSection('start')">Start</button>
+            <button class="nav-btn" onclick="showSection('sekcje')">Sekcje</button>
+            <button class="nav-btn" onclick="showSection('notatki')">Notatki</button>
+            <button class="nav-btn" style="background: #ff3b3b;" onclick="logout()">Wyloguj</button>
+        </div>
+
+        <div class="card">
+            <div id="sectionContent"></div>
+
+            <div id="adminControls" class="hidden">
+                <hr>
+                <p><strong>Panel Administratora</strong></p>
+                <div class="nav-menu">
+                    <button class="admin-btn" onclick="getUsers()">Lista użytkowników</button>
+                    <button class="admin-btn" style="background: #c62828;" onclick="resetBazy()">Reset bazy danych</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+let token = localStorage.getItem("token") || "";
+const API_URL = "http://localhost:3000";
+
+function toggleAuth(showRegister) {
+    document.getElementById("loginForm").classList.toggle("hidden", showRegister);
+    document.getElementById("registerForm").classList.toggle("hidden", !showRegister);
+    document.getElementById("wynik").innerText = "";
+}
+
+async function login() {
+    const username = document.getElementById("l_user").value.trim();
+    const password = document.getElementById("l_pass").value.trim();
+
+    if (!username || !password) {
+        document.getElementById("wynik").innerText = "Wypełnij wszystkie pola";
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/login`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({username, password})
+        });
+
+        const text = await res.text();
+
+        if (!res.ok) {
+            document.getElementById("wynik").innerText = text;
+            return;
+        }
+
+        const data = JSON.parse(text);
+        token = data.token;
+        localStorage.setItem("token", token);
+        setupUI();
+
+    } catch (e) {
+        document.getElementById("wynik").innerText = "Błąd połączenia z serwerem";
+    }
+}
+
+async function register() {
+    const username = document.getElementById("r_user").value.trim();
+    const password = document.getElementById("r_pass").value.trim();
+
+    try {
+        const res = await fetch(`${API_URL}/register`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({username, password})
+        });
+
+        const text = await res.text();
+        document.getElementById("wynik").innerText = text;
+        if(res.ok) toggleAuth(false);
+
+    } catch (e) {
+        document.getElementById("wynik").innerText = "Błąd połączenia z serwerem";
+    }
+}
+
+function setupUI() {
+    if (!token) return;
+
+    try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        document.getElementById("authSection").classList.add("hidden");
+        document.getElementById("mainDashboard").classList.remove("hidden");
+
+        document.getElementById("adminControls")
+            .classList.toggle("hidden", payload.role !== "admin");
+
+        showSection("start");
+    } catch {
+        logout();
+    }
+}
+
+function showSection(name) {
+    if (name === "notatki") {
+        window.location.href = "notatki.html";
+        return;
+    }
+
+    document.getElementById("pageTitle").innerText = "Pheme - " + name.toUpperCase();
+    const content = document.getElementById("sectionContent");
+
+    if (name === "start") content.innerHTML = "<h3>Witaj w systemie Pheme</h3>";
+    if (name === "sekcje") content.innerHTML = "<h3>Sekcje</h3>";
+}
+
+async function getUsers() {
+    const res = await fetch(`${API_URL}/users`, {
+        headers: { "Authorization": "Bearer " + token }
+    });
+
+    const users = await res.json();
+    let html = `<h3>Użytkownicy</h3><div class="user-list">`;
+    users.forEach(u => {
+        html += `<div class="user-item">
+            <span>${u.username} (${u.role})</span>
+            <button class="del-btn" onclick="deleteUser('${u.username}')">Usuń</button>
+        </div>`;
+    });
+    html += `</div>`;
+    document.getElementById("sectionContent").innerHTML = html;
+}
+
+async function deleteUser(username) {
+    if (!confirm(`Usunąć ${username}?`)) return;
+    await fetch(`${API_URL}/users/${username}`, {
+        method: "DELETE",
+        headers: { "Authorization": "Bearer " + token }
+    });
+    getUsers();
+}
+
+async function resetBazy() {
+    if (!confirm("Zresetować bazę danych?")) return;
+    await fetch(`${API_URL}/reset`, {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + token }
+    });
+    getUsers();
+}
+
+function logout() {
+    localStorage.removeItem("token");
+    location.reload();
+}
+
+if (token) setupUI();
+</script>
+
+</body>
+</html>
