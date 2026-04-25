@@ -180,6 +180,8 @@ app.post("/reset", auth, admin, (req, res) => {
     res.send(`Baza zresetowana. Pozostawiono ${adminsOnly.length} adminów.`);
 });
 
-app.listen(3000, () => {
-    console.log("Serwer działa na http://localhost:3000");
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+    console.log("Serwer działa na porcie " + PORT);
 });
