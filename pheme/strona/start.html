@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Pheme - System dla Studentów</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="top-bar">
+        Pheme
+    </header>
+
+    <main class="container">
+        <div class="card logo-section">
+            <a href="opis.html"> 
+                <img id="random-duck" src="" alt="Logo Kaczka" class="logo">
+            </a>
+            <p>Kliknij logo -> przejdź na postronę z wszystkimi kaczkami</p>
+        </div>
+
+        <div class="card">
+            <button class="btn">start</button>
+            <p>opis jak korzystać i opis wszystkich przycisków...</p>
+        </div>
+
+        <div class="card">
+            <button class="btn">sekcje</button>
+            <p>tak jak na themisie będą osobne sekcje...</p>
+        </div>
+    </main>
+
+    <footer class="footer">
+        made with ♥
+    </footer>
+
+    <script>
+        const numeryKaczek = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 67];
+
+        const losowyIndeks = Math.floor(Math.random() * numeryKaczek.length);
+        const wybranyNumer = numeryKaczek[losowyIndeks];
+
+        const imgElement = document.getElementById('random-duck');
+        
+        if (imgElement) {
+            imgElement.src = `../../kaczki/proste/kaczka_${wybranyNumer}.png`;
+        }
+    </script>
+</body>
+</html>

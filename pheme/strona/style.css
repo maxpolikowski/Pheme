@@ -1,0 +1,126 @@
+
+:root {
+            --primary-green: #00ce52;
+            --bg-gray: #e0e0e0;
+            --dark-gray: #333333;
+            --red-header: #ff3b3b;
+        }
+
+/* Podstawowe ustawienia */
+body {
+    background-color: #d3d3d3; /* Jasnoszary kolor tła */
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+/* Czerwony pasek */
+.top-bar {
+        width: 100%;
+        background: linear-gradient(to right, #ffffff, var(--red-header));
+        text-align: center;
+        padding: 10px 0;
+        font-weight: bold;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Układanie elementów w rzędzie */
+.container {
+    display: flex;
+    justify-content: space-around; /* Rozkłada elementy równomiernie */
+    align-items: flex-start;
+    padding: 50px 20px;
+    gap: 20px;
+}
+
+/* Styl pojedynczej "kolumny" */
+.card {
+    flex: 1;
+    text-align: center;
+    max-width: 200px;
+}
+
+/* Styl przycisków */
+.btn {
+    background-color: #333;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+    margin-bottom: 15px;
+    font-size: 16px;
+}
+
+.btn:hover {
+    background-color: #555;
+}
+
+/* Styl obrazka logo */
+.logo {
+    width: 150px;
+    height: auto;
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+/* Stopka */
+.footer {
+    position: fixed;
+    bottom: 10px;
+    right: 20px;
+    font-size: 14px;
+}
+
+/* --- UKŁAD GALERII (PIONOWY) --- */
+.lista-pionowa {
+    display: flex;
+    flex-direction: column;
+    align-items: center;    /* To wyśrodkuje karty (kaczka-blok) */
+    width: 100%;            /* BARDZO WAŻNE */
+    gap: 40px;
+    padding: 50px 0;
+    box-sizing: border-box; /* Zapobiega rozjeżdżaniu się przy paddingu */
+}
+
+.kaczka-blok {
+    background-color: white;
+    border-radius: 15px;
+    padding: 20px;
+    width: 90%;             /* Elastyczna szerokość na telefonach */
+    max-width: 400px;       /* Stała szerokość na komputerze */
+    display: flex;
+    flex-direction: column;
+    align-items: center;    /* Środkuje zdjęcie i tekst wewnątrz białego pola */
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    /* Usuwamy ewentualne float: left lub margin-left jeśli tam były */
+    margin: 0 auto;         
+}
+
+.kaczka-blok:hover {
+    transform: translateY(-10px);
+}
+
+/* Elementy wewnątrz karty */
+.zdjecie {
+    align-items: center;
+    width: 100%;
+    max-width: 250px;
+    height: auto;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.opis-kaczki {
+    align-items: center;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 16px;
+    color: #444;
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box; /* Ważne, żeby padding nie rozpychał tekstu */
+}

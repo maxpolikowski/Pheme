@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Pheme - Galeria Kaczek</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="top-bar">
+        Pheme kaczki
+    </header>
+
+    <main id="box" class="kontener-kaczek"></main>
+
+    <footer class="footer">
+        made with ♥
+    </footer>
+
+    <script>
+        const kontener = document.getElementById('box');
+        const numery = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 67];
+
+        // Funkcja, która tworzy blok kaczki
+        async function stworzKaczke(numer) {
+            // 1. Tworzymy kontener
+            const div = document.createElement('div');
+            div.className = 'kaczka-blok';
+
+            // 2. Tworzymy obrazek
+            const img = document.createElement('img');
+            img.src = `../../kaczki/proste/kaczka_${numer}.png`;
+            img.className = 'zdjecie';
+
+            // 3. Tworzymy tekst (miejsce na opis)
+            const p = document.createElement('p');
+            p.className = 'opis-kaczki';
+            
+            // --- ŁADOWANIE OPISU Z PLIKU ---
+            try {
+                // Ścieżka do Twojego folderu z opisami
+                const odpowiedz = await fetch(`../../kaczki/opisy/opis_${numer}.txt`);
+                if (odpowiedz.ok) {
+                    const tekst = await odpowiedz.text();
+                    p.innerText = tekst; // Wstawia treść z pliku .txt
+                } else {
+                    p.innerText = `Brak opisu dla kaczki ${numer}`;
+                }
+            } catch (error) {
+                p.innerText = "Błąd ładowania opisu";
+            }
+            // ------------------------------
+
+            div.appendChild(img);
+            div.appendChild(p);
+            kontener.appendChild(div);
+        }
+
+        // Uruchamiamy funkcję dla każdego numeru
+        numery.forEach(n => stworzKaczke(n));
+    </script>
+</body>
+</html>
