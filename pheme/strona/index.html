@@ -311,11 +311,21 @@ window.onload = () => {
 };
 
 function toggleAuth(isReg) {
+    // Przełączanie formularzy
     document.getElementById("loginForm").classList.toggle("hidden", isReg);
     document.getElementById("registerForm").classList.toggle("hidden", !isReg);
+    
+    //  Zmiana tekstu w nagłówku
+    const titleEl = document.getElementById("pageTitle");
+    if (isReg) {
+        titleEl.innerText = "Pheme rejestracja";
+    } else {
+        titleEl.innerText = "Pheme logowanie";
+    }
+
+    // Czyszczenie komunikatu o błędach przy przełączaniu
     document.getElementById("wynik").innerText = "";
 }
-
 async function login() {
     const username = document.getElementById("l_user").value.trim();
     const password = document.getElementById("l_pass").value.trim();
