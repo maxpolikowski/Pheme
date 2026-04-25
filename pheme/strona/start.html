@@ -2,49 +2,123 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Pheme - System dla Studentów</title>
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pheme - Panel Studenta</title>
+    <style>
+        :root {
+            --primary-green: #00ce52;
+            --bg-gray: #e0e0e0;
+            --dark-gray: #333333;
+            --red-header: #ff3b3b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-gray);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .header-bar {
+            width: 100%;
+            background: linear-gradient(to right, #ffffff, var(--red-header));
+            text-align: center;
+            padding: 10px 0;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1000px;
+            margin-top: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: var(--primary-green);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.2s;
+            margin: 5px;
+        }
+
+        .nav-menu {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .nav-btn {
+            background: var(--dark-gray);
+            min-width: 100px;
+        }
+
+        .logo-img {
+            max-width: 200px;
+            height: auto;
+            border-radius: 15px;
+            margin: 20px 0;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
 
-    <header class="top-bar">
-        Pheme
-    </header>
+<div class="header-bar">Pheme - START</div>
 
-    <main class="container">
-        <div class="card logo-section">
-            <a href="opis.html"> 
-                <img id="random-duck" src="" alt="Logo Kaczka" class="logo">
-            </a>
-            <p>Kliknij logo -> przejdź na postronę z wszystkimi kaczkami</p>
-        </div>
+<div class="container">
+    <div class="nav-menu">
+        <button class="nav-btn" onclick="location.href='start.html'">Start</button>
+        <button class="nav-btn" onclick="location.href='sekcje.html'">Sekcje</button>
+        <button class="nav-btn" onclick="location.href='notatki.html'">Notatki</button>
+        <button class="nav-btn" style="background: #ff3b3b;" onclick="logout()">Wyloguj</button>
+    </div>
 
-        <div class="card">
-            <button class="btn">start</button>
-            <p>opis jak korzystać i opis wszystkich przycisków...</p>
-        </div>
-
-        <div class="card">
-            <button class="btn">sekcje</button>
-            <p>tak jak na themisie będą osobne sekcje...</p>
-        </div>
-    </main>
-
-    <footer class="footer">
-        made with ♥
-    </footer>
-
-    <script>
-        const numeryKaczek = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 67];
-
-        const losowyIndeks = Math.floor(Math.random() * numeryKaczek.length);
-        const wybranyNumer = numeryKaczek[losowyIndeks];
-
-        const imgElement = document.getElementById('random-duck');
+    <div class="card">
+        <h3>Witaj w systemie Pheme</h3>
+        <p>Wygląda na to, że pomyślnie się zalogowałeś!</p>
         
-        if (imgElement) {
-            imgElement.src = `../../kaczki/proste/kaczka_${wybranyNumer}.png`;
-        }
-    </script>
+        <a href="opis.html">
+            <img id="random-duck" src="" alt="Kaczka" class="logo-img">
+        </a>
+        <p style="color: #666; font-size: 0.9rem;">Kliknij kaczuszkę, by zobaczyć galerię</p>
+    </div>
+</div>
+
+<script>
+    // Sprawdzamy token przy wejściu na stronę
+    const token = localStorage.getItem("token");
+    if (!token) {
+        window.location.href = "index.html";
+    }
+
+    function logout() {
+        localStorage.removeItem("token");
+        window.location.href = "index.html";
+    }
+
+    // Twoja logika losowania kaczki
+    const numeryKaczek = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 67];
+    const wybranyNumer = numeryKaczek[Math.floor(Math.random() * numeryKaczek.length)];
+    document.getElementById('random-duck').src = `../../kaczki/proste/kaczka_${wybranyNumer}.png`;
+</script>
+
 </body>
 </html>

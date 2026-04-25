@@ -4,7 +4,8 @@
     "password": "$2b$10$7CV62lEtksbaiN5jK8j/oeUo262f0.jPpii7G75eOqDhE2ZCMq1uu",
     "role": "admin",
     "loginAttempts": 0,
-    "lockUntil": null
+    "lockUntil": null,
+    "attemptsWindowStart": 1777118765391
   },
   {
     "username": "test",
