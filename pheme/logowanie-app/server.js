@@ -7,7 +7,9 @@ const rateLimit = require("express-rate-limit");
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+    origin: "*"
+}));
 
 const SECRET = "tajny_klucz";
 const DB_FILE = "users.json";
@@ -180,6 +182,7 @@ app.post("/reset", auth, admin, (req, res) => {
     res.send(`Baza zresetowana. Pozostawiono ${adminsOnly.length} adminów.`);
 });
 
+// 🔥 Render wymaga PORT z env
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
