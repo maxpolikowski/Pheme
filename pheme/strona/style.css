@@ -150,3 +150,102 @@ body {
     background-color: #000;
     transform: scale(1.05);
 }
+/* Kontener nadrzędny, żeby wszystko było wyśrodkowane */
+.authors-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 120px;
+    gap: 20px; /* Odstęp między górnym tekstem a kolumnami */
+}
+
+/* Styl dla szerokiego tekstu na górze */
+.wide-text {
+    width: 650px; /* Suma szerokości kolumn (2x300px) + gap (50px) */
+    box-sizing: border-box;
+}
+
+/* Reszta pozostaje bez większych zmian, usuwamy tylko padding-top z main-container */
+.main-container {
+    display: flex;
+    justify-content: center;
+    gap: 50px;
+}
+
+.column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 300px;
+}
+
+.text-box {
+    background-color: white;
+    padding: 15px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 24px;
+    background: linear-gradient(to right, #00fffb, var(--red-header));
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.image-placeholder {
+    background-color: #f0f0f0;
+    border: 4px solid white;
+    height: 200px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-style: italic;
+    font-size: 20px;
+    color: #666;
+    border-radius: 5px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.gej-box {
+    /* Tęczowe tło (gradient poziomy) */
+    background: linear-gradient(
+        to right, 
+        #ff0000, /* Czerwony */
+        #ff8c00, /* Pomarańczowy */
+        #ffff00, /* Żółty */
+        #008000, /* Zielony */
+        #0000ff, /* Niebieski */
+        #800080  /* Fioletowy */
+    );
+
+    /* Czarny tekst */
+    color: #000000;
+    
+    /* Reszta Twoich ustawień */
+    padding: 15px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 24px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2); /* Trochę mocniejszy cień dla kontrastu */
+}
+.sigma-box {
+    /* Tęczowe tło (gradient poziomy) */
+    background: linear-gradient(
+        to right, 
+        #e1ff00, /* Pomarańczowy */
+        #d4ff00, /* Żółty */
+        #aaff0000
+    );
+
+    /* Czarny tekst */
+    color: #000000;
+    
+    /* Reszta Twoich ustawień */
+    padding: 15px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 24px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2); /* Trochę mocniejszy cień dla kontrastu */
+}
