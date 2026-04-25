@@ -88,11 +88,16 @@
         <button class="nav-btn" onclick="location.href='start.html'">Start</button>
         <button class="nav-btn" onclick="location.href='sekcje.html'">Sekcje</button>
         <button class="nav-btn" onclick="location.href='notatki.html'">Notatki</button>
+        <button class="nav-btn" onclick="location.href='pytania.html'">Pytania</button>
+        <button class="nav-btn" onclick="location.href='profil.html'">Profil</button>
         <button class="nav-btn" style="background: #ff3b3b;" onclick="logout()">Wyloguj</button>
     </div>
 
     <div class="card">
-        <h3>Witaj w systemie Pheme</h3>
+
+        <!-- NOWE POWITANIE -->
+        <h3 id="welcome">Ładowanie...</h3>
+
         <p>Wygląda na to, że pomyślnie się zalogowałeś!</p>
         
         <a href="opis.html">
@@ -113,6 +118,16 @@
         localStorage.removeItem("token");
         window.location.href = "index.html";
     }
+
+    // 🔥 Pobieramy imię użytkownika z backendu
+    fetch("https://pheme-spmz.onrender.com/profil", {
+        headers: { "Authorization": "Bearer " + token }
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("welcome").innerText =
+            "Witaj, " + (data.name || data.username) + "!";
+    });
 
     // Twoja logika losowania kaczki
     const numeryKaczek = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 67];

@@ -5,7 +5,8 @@
     "role": "admin",
     "loginAttempts": 0,
     "lockUntil": null,
-    "attemptsWindowStart": 1777123210912
+    "attemptsWindowStart": 1777123210912,
+    "name": "sigmian"
   },
   {
     "username": "test",
@@ -13,6 +14,7 @@
     "role": "user",
     "loginAttempts": 0,
     "lockUntil": 1777056844806,
-    "attemptsWindowStart": 1777137529203
+    "attemptsWindowStart": 1777137529203,
+    "name": "bohgdan"
   }
 ]

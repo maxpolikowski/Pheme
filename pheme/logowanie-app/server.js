@@ -8,7 +8,9 @@ const rateLimit = require("express-rate-limit");
 const app = express();
 app.use(express.json());
 app.use(cors({
-    origin: "*"
+    origin: "*",
+    methods: ["GET", "POST", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
 const SECRET = "tajny_klucz";
@@ -65,12 +67,7 @@ function admin(req, res, next) {
 // REJESTRACJA
 app.post("/register", async (req, res) => {
     try {
-        const stats = fs.statSync(DB_FILE);
-        if (stats.size > 1000000) {
-            return res.status(400).send("Baza danych jest pełna");
-        }
-
-        const { username, password } = req.body;
+        const { username, password, name } = req.body;
         let users = loadUsers();
 
         if (users.find(u => u.username === username)) {
@@ -82,6 +79,7 @@ app.post("/register", async (req, res) => {
         users.push({
             username,
             password: hash,
+            name: name || "",
             role: "user",
             loginAttempts: 0,
             attemptsWindowStart: Date.now()
@@ -94,42 +92,16 @@ app.post("/register", async (req, res) => {
     }
 });
 
-// LOGOWANIE (limit per użytkownik + IP)
+// LOGOWANIE
 app.post("/login", loginLimiter, async (req, res) => {
     const { username, password } = req.body;
     let users = loadUsers();
 
-    const userIndex = users.findIndex(u => u.username === username);
-    if (userIndex === -1) {
-        return res.status(400).send("Brak użytkownika");
-    }
-
-    const user = users[userIndex];
-    const now = Date.now();
-
-    // 🔄 Reset licznika po 1 godzinie
-    if (!user.attemptsWindowStart || now - user.attemptsWindowStart > 60 * 60 * 1000) {
-        user.loginAttempts = 0;
-        user.attemptsWindowStart = now;
-    }
-
-    // 🚫 Limit 1000 prób
-    if (user.loginAttempts >= 1000) {
-        return res.status(429).send("Zbyt wiele prób logowania. Spróbuj później.");
-    }
+    const user = users.find(u => u.username === username);
+    if (!user) return res.status(400).send("Brak użytkownika");
 
     const ok = await bcrypt.compare(password, user.password);
-
-    if (!ok) {
-        user.loginAttempts += 1;
-        saveUsers(users);
-        return res.status(400).send("Złe hasło");
-    }
-
-    // ✅ Sukces — reset licznika
-    user.loginAttempts = 0;
-    user.attemptsWindowStart = now;
-    saveUsers(users);
+    if (!ok) return res.status(400).send("Złe hasło");
 
     const token = jwt.sign(
         { username: user.username, role: user.role },
@@ -140,46 +112,52 @@ app.post("/login", loginLimiter, async (req, res) => {
     res.json({ token });
 });
 
-// PROFIL
+// PROFIL (pobieranie danych)
 app.get("/profil", auth, (req, res) => {
-    res.json(req.user);
+    const users = loadUsers();
+    const user = users.find(u => u.username === req.user.username);
+
+    res.json({
+        username: user.username,
+        name: user.name || "",
+        role: user.role
+    });
 });
 
-// LISTA UŻYTKOWNIKÓW (ADMIN)
-app.get("/users", auth, admin, (req, res) => {
-    const users = loadUsers().map(u => ({
-        username: u.username,
-        role: u.role
-    }));
-    res.json(users);
-});
+// 🔥 AKTUALIZACJA PROFILU (imię + hasło)
+app.post("/update-profile", auth, async (req, res) => {
+    const { newName, newPassword } = req.body;
 
-// USUWANIE (ADMIN)
-app.delete("/users/:username", auth, admin, (req, res) => {
     let users = loadUsers();
+    const user = users.find(u => u.username === req.user.username);
 
-    const filtered = users.filter(u => u.username !== req.params.username);
-
-    if (users.length === filtered.length) {
-        return res.status(404).send("Nie znaleziono");
+    if (!user) {
+        return res.status(404).json({ message: "Użytkownik nie istnieje" });
     }
 
-    saveUsers(filtered);
-    res.send(`Usunięto użytkownika ${req.params.username}`);
+    // Zmiana imienia
+    if (newName && newName.trim() !== "") {
+        user.name = newName;
+    }
+
+    // Zmiana hasła
+    if (newPassword && newPassword.trim() !== "") {
+        const hashed = await bcrypt.hash(newPassword, 10);
+        user.password = hashed;
+    }
+
+    saveUsers(users);
+
+    res.json({ message: "Pomyślnie zaktualizowano" });
 });
 
-// RESET BAZY (ADMIN) — zostawia adminów
+// RESET BAZY (ADMIN)
 app.post("/reset", auth, admin, (req, res) => {
     let users = loadUsers();
-
     const adminsOnly = users.filter(u => u.role === "admin");
 
-    if (adminsOnly.length === 0) {
-        return res.status(500).send("Błąd: Brak admina w bazie!");
-    }
-
     saveUsers(adminsOnly);
-    res.send(`Baza zresetowana. Pozostawiono ${adminsOnly.length} adminów.`);
+    res.send("Baza zresetowana");
 });
 
 // 🔥 Render wymaga PORT z env

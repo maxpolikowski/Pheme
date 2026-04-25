@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pheme - Profil</title>
+    <style>
+        :root {
+            --primary-green: #00ce52;
+            --bg-gray: #e0e0e0;
+            --dark-gray: #333333;
+            --red-header: #ff3b3b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-gray);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* GÓRNY PASEK */
+        .header-bar {
+            width: 100%;
+            background: linear-gradient(to right, #ffffff, var(--red-header));
+            text-align: center;
+            padding: 10px 0;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1000px;
+            margin-top: 30px;
+        }
+
+        /* NAWIGACJA */
+        .nav-menu {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .nav-btn {
+            background: var(--dark-gray);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 24px;
+            min-width: 100px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+        .nav-btn:hover { opacity: 0.85; }
+
+        /* UKŁAD PROFILU (Dwie kolumny) */
+        .profile-layout {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap; /* Pozwala na ułożenie jeden pod drugim na małych ekranach */
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            flex: 1;
+            min-width: 300px;
+            max-width: 450px;
+        }
+
+        .card h2 {
+            margin-top: 0;
+            margin-bottom: 25px;
+            color: #2c3e50;
+            font-size: 1.4rem;
+            border-bottom: 2px solid var(--bg-gray);
+            padding-bottom: 10px;
+        }
+
+        /* FORMULARZE */
+        .form-group {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+            font-size: 0.9rem;
+        }
+        
+        /* Tekst statyczny dla loginu */
+        .static-text {
+            padding: 12px 15px;
+            background: var(--bg-gray);
+            border-radius: 12px;
+            color: var(--dark-gray);
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .input-box {
+            display: flex;
+            align-items: center;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 12px 15px;
+            background: #f9f9f9;
+            transition: border-color 0.3s;
+        }
+        .input-box:focus-within {
+            border-color: var(--primary-green);
+        }
+        .input-box input {
+            border: none;
+            background: transparent;
+            width: 100%;
+            outline: none;
+            font-size: 1rem;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: var(--primary-green);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: opacity 0.2s;
+        }
+        .submit-btn:hover { opacity: 0.85; }
+
+        #wynik {
+            text-align: center;
+            margin-top: 20px;
+            font-weight: bold;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header-bar">Pheme - Ustawienia Profilu</div>
+
+<div class="container">
+    <div class="nav-menu">
+        <button class="nav-btn" onclick="location.href='start.html'">Start</button>
+        <button class="nav-btn" onclick="location.href='sekcje.html'">Sekcje</button>
+        <button class="nav-btn" onclick="location.href='notatki.html'">Notatki</button>
+        <button class="nav-btn" onclick="location.href='pytania.html'">Pytania</button>
+        <button class="nav-btn" onclick="location.href='profil.html'">Profil</button>
+        <button class="nav-btn" style="background: #ff3b3b;" onclick="logout()">Wyloguj</button>
+    </div>
+
+    <div class="profile-layout">
+        <div class="card">
+            <h2>Ustawienia osobiste</h2>
+            
+            <div class="form-group">
+                <label>Twój Login (nie można zmienić)</label>
+                <div class="static-text" id="display-login">Ładowanie...</div>
+            </div>
+
+            <div class="form-group">
+                <label>Imię i nazwisko</label>
+                <div class="input-box">
+                    <input id="p_name" type="text" placeholder="Wpisz swoje imię">
+                </div>
+            </div>
+
+            <button class="submit-btn" onclick="zapiszImie()">Zapisz dane</button>
+        </div>
+
+        <div class="card">
+            <h2>Zmiana hasła</h2>
+            
+            <div class="form-group">
+                <label>Nowe hasło</label>
+                <div class="input-box">
+                    <input id="p_new_pass" type="password" placeholder="Wpisz nowe hasło">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Powtórz nowe hasło</label>
+                <div class="input-box">
+                    <input id="p_repeat_pass" type="password" placeholder="Powtórz nowe hasło">
+                </div>
+            </div>
+
+            <button class="submit-btn" onclick="zmienHaslo()">Zmień hasło</button>
+        </div>
+    </div>
+
+    <p id="wynik"></p>
+</div>
+
+<script>
+    const API_URL = "https://pheme-spmz.onrender.com";
+    const token = localStorage.getItem("token");
+
+    // Sprawdzenie autoryzacji
+    if (!token) {
+        window.location.href = "index.html";
+    }
+
+    function logout() {
+        localStorage.removeItem("token");
+        window.location.href = "index.html";
+    }
+
+    // POBIERANIE DANYCH PROFILU PO ZAŁADOWANIU STRONY
+    window.onload = async () => {
+        try {
+            const res = await fetch(`${API_URL}/profil`, {
+                headers: { "Authorization": "Bearer " + token }
+            });
+            
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById("display-login").innerText = data.username;
+                document.getElementById("p_name").value = data.name || "";
+            } else {
+                logout(); // Jeśli token wygasł lub jest zły
+            }
+        } catch (e) {
+            console.error("Błąd pobierania profilu:", e);
+        }
+    };
+
+    // FUNKCJA: ZMIANA IMIENIA
+    async function zapiszImie() {
+        const newName = document.getElementById("p_name").value.trim();
+        const wynikEl = document.getElementById("wynik");
+
+        wynikEl.style.color = "#333";
+        wynikEl.innerText = "Zapisywanie...";
+
+        try {
+            const res = await fetch(`${API_URL}/update-profile`, {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({ newName: newName }) 
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                wynikEl.style.color = "var(--primary-green)";
+                wynikEl.innerText = "Imię zostało pomyślnie zaktualizowane!";
+            } else {
+                wynikEl.style.color = "var(--red-header)";
+                wynikEl.innerText = data.message || "Wystąpił błąd";
+            }
+        } catch (e) {
+            wynikEl.style.color = "var(--red-header)";
+            wynikEl.innerText = "Błąd połączenia z serwerem";
+        }
+    }
+
+    // FUNKCJA: ZMIANA HASŁA
+    async function zmienHaslo() {
+        const newPass = document.getElementById("p_new_pass").value.trim();
+        const repeatPass = document.getElementById("p_repeat_pass").value.trim();
+        const wynikEl = document.getElementById("wynik");
+
+        // Walidacja po stronie klienta
+        if (!newPass || !repeatPass) {
+            wynikEl.style.color = "var(--red-header)";
+            wynikEl.innerText = "Wypełnij wszystkie pola hasła!";
+            return;
+        }
+
+        if (newPass !== repeatPass) {
+            wynikEl.style.color = "var(--red-header)";
+            wynikEl.innerText = "Hasła nie są identyczne!";
+            return;
+        }
+
+        wynikEl.style.color = "#333";
+        wynikEl.innerText = "Zmienianie hasła...";
+
+        try {
+            const res = await fetch(`${API_URL}/update-profile`, {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({ newPassword: newPass }) 
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                wynikEl.style.color = "var(--primary-green)";
+                wynikEl.innerText = "Hasło zostało pomyślnie zmienione!";
+                // Czyszczenie pól
+                document.getElementById("p_new_pass").value = "";
+                document.getElementById("p_repeat_pass").value = "";
+            } else {
+                wynikEl.style.color = "var(--red-header)";
+                wynikEl.innerText = data.message || "Wystąpił błąd";
+            }
+        } catch (e) {
+            wynikEl.style.color = "var(--red-header)";
+            wynikEl.innerText = "Błąd połączenia z serwerem";
+        }
+    }
+</script>
+
+</body>
+</html>
