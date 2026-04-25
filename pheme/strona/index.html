@@ -246,15 +246,12 @@ function setupUI() {
     if (!token) return;
 
     try {
+        // Sprawdzamy czy token jest poprawny
         const payload = JSON.parse(atob(token.split(".")[1]));
-        document.getElementById("authSection").classList.add("hidden");
-        document.getElementById("mainDashboard").classList.remove("hidden");
-
-        document.getElementById("adminControls")
-            .classList.toggle("hidden", payload.role !== "admin");
-
-        showSection("start");
-    } catch {
+        
+        // ZMIANA: Zamiast pokazywać #mainDashboard, idziemy do start.html
+        window.location.href = "start.html";
+    } catch (e) {
         logout();
     }
 }
