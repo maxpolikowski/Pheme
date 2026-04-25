@@ -126,27 +126,27 @@ body {
     width: 100%;
     box-sizing: border-box; /* Ważne, żeby padding nie rozpychał tekstu */
 }
-.przycisk-powrotu-bok {
-    /* Pozycjonowanie */
+.guzik-powrotu {
     position: absolute;
-    top: 60px; /* Odstęp od góry (pod czerwonym paskiem) */
-    left: 20px; /* Odstęp od lewej krawędzi */
-    z-index: 100; /* Żeby zawsze był na wierzchu */
-
-    /* Wygląd */
-    background-color: var(--dark-gray); /* Twoja zmienna ciemnoszara */
-    color: white;
-    text-decoration: none;
+    top: 65px; /* Ustawienie pod czerwonym paskiem */
+    left: 20px;
+    
+    /* Wygląd przycisku */
+    background-color: #333333; /* Ciemny kolor z Twojej palety */
+    color: white !important;   /* !important wymusi biały kolor zamiast fioletowego linku */
+    text-decoration: none;     /* Usunięcie podkreślenia */
+    
     padding: 10px 20px;
-    border-radius: 25px; /* Zaokrąglone boki */
-    font-size: 14px;
+    border-radius: 30px;       /* Zaokrąglone brzegi jak na obrazku */
     font-family: sans-serif;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-    transition: all 0.3s ease;
+    font-size: 14px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    display: inline-block;
+    transition: 0.3s;
+    z-index: 999;
 }
 
-.przycisk-powrotu-bok:hover {
-    background-color: #000000;
+.guzik-powrotu:hover {
+    background-color: #000;
     transform: scale(1.05);
-    box-shadow: 0 6px 12px rgba(0,0,0,0.3);
 }
