@@ -186,25 +186,32 @@
             <button class="submit-btn" onclick="zapiszImie()">Zapisz dane</button>
         </div>
 
-        <div class="card">
-            <h2>Zmiana hasła</h2>
-            
-            <div class="form-group">
-                <label>Nowe hasło</label>
-                <div class="input-box">
-                    <input id="p_new_pass" type="password" placeholder="Wpisz nowe hasło">
-                </div>
+       <div class="card">
+    <h2>Zmiana hasła</h2>
+    
+        <div class="form-group">
+            <label>Stare hasło</label>
+            <div class="input-box">
+                <input id="p_old_pass" type="password" placeholder="Wpisz aktualne hasło">
             </div>
-
-            <div class="form-group">
-                <label>Powtórz nowe hasło</label>
-                <div class="input-box">
-                    <input id="p_repeat_pass" type="password" placeholder="Powtórz nowe hasło">
-                </div>
-            </div>
-
-            <button class="submit-btn" onclick="zmienHaslo()">Zmień hasło</button>
         </div>
+
+        <div class="form-group">
+            <label>Nowe hasło</label>
+            <div class="input-box">
+                <input id="p_new_pass" type="password" placeholder="Wpisz nowe hasło">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Powtórz nowe hasło</label>
+            <div class="input-box">
+                <input id="p_repeat_pass" type="password" placeholder="Powtórz nowe hasło">
+            </div>
+        </div>
+
+        <button class="submit-btn" onclick="zmienHaslo()">Zmień hasło</button>
+    </div>
     </div>
 
     <p id="wynik"></p>
@@ -277,52 +284,54 @@
 
     // FUNKCJA: ZMIANA HASŁA
     async function zmienHaslo() {
-        const newPass = document.getElementById("p_new_pass").value.trim();
-        const repeatPass = document.getElementById("p_repeat_pass").value.trim();
-        const wynikEl = document.getElementById("wynik");
+    const oldPass = document.getElementById("p_old_pass").value.trim();
+    const newPass = document.getElementById("p_new_pass").value.trim();
+    const repeatPass = document.getElementById("p_repeat_pass").value.trim();
+    const wynikEl = document.getElementById("wynik");
 
-        // Walidacja po stronie klienta
-        if (!newPass || !repeatPass) {
-            wynikEl.style.color = "var(--red-header)";
-            wynikEl.innerText = "Wypełnij wszystkie pola hasła!";
-            return;
-        }
-
-        if (newPass !== repeatPass) {
-            wynikEl.style.color = "var(--red-header)";
-            wynikEl.innerText = "Hasła nie są identyczne!";
-            return;
-        }
-
-        wynikEl.style.color = "#333";
-        wynikEl.innerText = "Zmienianie hasła...";
-
-        try {
-            const res = await fetch(`${API_URL}/update-profile`, {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token
-                },
-                body: JSON.stringify({ newPassword: newPass }) 
-            });
-
-            const data = await res.json();
-            if (res.ok) {
-                wynikEl.style.color = "var(--primary-green)";
-                wynikEl.innerText = "Hasło zostało pomyślnie zmienione!";
-                // Czyszczenie pól
-                document.getElementById("p_new_pass").value = "";
-                document.getElementById("p_repeat_pass").value = "";
-            } else {
-                wynikEl.style.color = "var(--red-header)";
-                wynikEl.innerText = data.message || "Wystąpił błąd";
-            }
-        } catch (e) {
-            wynikEl.style.color = "var(--red-header)";
-            wynikEl.innerText = "Błąd połączenia z serwerem";
-        }
+    if (!oldPass || !newPass || !repeatPass) {
+        wynikEl.style.color = "var(--red-header)";
+        wynikEl.innerText = "Wypełnij wszystkie pola!";
+        return;
     }
+
+    if (newPass !== repeatPass) {
+        wynikEl.style.color = "var(--red-header)";
+        wynikEl.innerText = "Nowe hasła nie są identyczne!";
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/update-profile`, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token
+            },
+            body: JSON.stringify({ 
+                oldPassword: oldPass, 
+                newPassword: newPass 
+            }) 
+        });
+
+        const data = await res.json();
+        
+        if (res.ok) {
+            wynikEl.style.color = "var(--primary-green)";
+            wynikEl.innerText = "Hasło zostało zmienione!";
+            // Czyścimy wszystkie pola haseł
+            document.getElementById("p_old_pass").value = "";
+            document.getElementById("p_new_pass").value = "";
+            document.getElementById("p_repeat_pass").value = "";
+        } else {
+            wynikEl.style.color = "var(--red-header)";
+            wynikEl.innerText = data.message;
+        }
+    } catch (e) {
+        wynikEl.style.color = "var(--red-header)";
+        wynikEl.innerText = "Błąd połączenia";
+    }
+}
 </script>
 
 </body>

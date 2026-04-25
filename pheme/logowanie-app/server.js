@@ -125,8 +125,9 @@ app.get("/profil", auth, (req, res) => {
 });
 
 // 🔥 AKTUALIZACJA PROFILU (imię + hasło)
+// 🔥 AKTUALIZACJA PROFILU (imię + stare/nowe hasło)
 app.post("/update-profile", auth, async (req, res) => {
-    const { newName, newPassword } = req.body;
+    const { newName, oldPassword, newPassword } = req.body;
 
     let users = loadUsers();
     const user = users.find(u => u.username === req.user.username);
@@ -135,20 +136,30 @@ app.post("/update-profile", auth, async (req, res) => {
         return res.status(404).json({ message: "Użytkownik nie istnieje" });
     }
 
-    // Zmiana imienia
+    // 1. Zmiana imienia (zawsze dozwolona)
     if (newName && newName.trim() !== "") {
         user.name = newName;
     }
 
-    // Zmiana hasła
+    // 2. Zmiana hasła (wymaga podania starego)
     if (newPassword && newPassword.trim() !== "") {
+        if (!oldPassword) {
+            return res.status(400).json({ message: "Musisz podać stare hasło, aby ustawić nowe" });
+        }
+
+        // Sprawdzamy czy stare hasło pasuje
+        const passwordMatch = await bcrypt.compare(oldPassword, user.password);
+        if (!passwordMatch) {
+            return res.status(401).json({ message: "Podane stare hasło jest nieprawidłowe" });
+        }
+
+        // Jeśli pasuje, haszujemy nowe
         const hashed = await bcrypt.hash(newPassword, 10);
         user.password = hashed;
     }
 
     saveUsers(users);
-
-    res.json({ message: "Pomyślnie zaktualizowano" });
+    res.json({ message: "Pomyślnie zaktualizowano profil" });
 });
 
 // RESET BAZY (ADMIN)
