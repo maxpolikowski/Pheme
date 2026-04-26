@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pheme - Sekcje</title>
     <style>
+        
         :root {
             --primary-green: #00ce52;
             --bg-gray: #f5f5f5;
@@ -139,18 +140,29 @@
             overflow: hidden;
         }
 
+        /* Nowy kolor dla nauczyciela (np. niebieski lub fioletowy) */
+        .role-nauczyciel { 
+            background: #f0ebff; 
+            color: #6c5ce7; 
+        }
+
         .section-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 15px 20px;
+            padding: 18px 25px; /* Trochę większy padding dla lepszej klikalności */
             border-bottom: 1px solid #eee;
             font-size: 1.1rem;
-            transition: background 0.2s;
-            cursor: pointer; /* Kursor łapki na sekcjach */
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border-radius: 8px; /* Lekkie zaokrąglenie wewnątrz listy */
+            margin: 5px 10px;
         }
+
         .section-item:hover {
-            background: #eef8f1; /* Lekko zielone tło po najechaniu */
+            background: #f0fdf4; /* Jasnozielony hover */
+            transform: translateX(5px); /* Delikatny efekt wysunięcia */
+            box-shadow: -5px 0 0 var(--primary-green); /* Zielony pasek z boku */
         }
         .section-item:last-child {
             border-bottom: none;
@@ -291,27 +303,37 @@
     }
 
     // --- 3. RYSOWANIE SEKCJI ---
-    function wypiszSekcje(sekcje) {
-        const lista = document.getElementById("listaSekcji");
-        lista.innerHTML = "";
+        function wypiszSekcje(sekcje) {
+    const lista = document.getElementById("listaSekcji");
+    lista.innerHTML = "";
 
-        if (!sekcje || sekcje.length === 0) {
-            lista.innerHTML = `<div class="empty-state">Nie należysz jeszcze do żadnej sekcji. Dołącz używając kodu powyżej!</div>`;
-            return;
-        }
+    if (!sekcje || sekcje.length === 0) {
+        lista.innerHTML = `<div class="empty-state">Nie należysz do żadnej sekcji.</div>`;
+        return;
+    }
 
-        sekcje.forEach(sekcja => {
-            const klasaRoli = sekcja.rola === "admin" ? "role-admin" : "role-user";
-            
-            // Sekcje stają się klikalne (mają kursor łapki z CSS i onclick)
-            const html = `
-                <div class="section-item" onclick="przejdzDoSekcji('${sekcja.kod || sekcja.nazwa}')">
-                    <span>${sekcja.nazwa}</span>
-                    <span class="role-badge ${klasaRoli}">${sekcja.rola}</span>
-                </div>
-            `;
-            lista.insertAdjacentHTML('beforeend', html);
-        });
+    sekcje.forEach(sekcja => {
+        // Tworzymy nazwę pliku tak samo jak na serwerze (małe litery, podkreślniki zamiast spacji)
+        const nazwaPliku = sekcja.name.replace(/\s+/g, '_').toLowerCase() + ".html";
+        
+        let klasaRoli = sekcja.rola === "nauczyciel" ? "role-nauczyciel" : "role-user";
+        
+        const html = `
+            <div class="section-item" onclick="window.location.href='${nazwaPliku}'">
+                <span>${sekcja.name}</span>
+                <span class="role-badge ${klasaRoli}">${sekcja.rola}</span>
+            </div>
+        `;
+        lista.insertAdjacentHTML('beforeend', html);
+    });
+}
+
+    // Funkcja, która odpala się po kliknięciu w sekcję
+    function przejdzDoSekcji(kodSekcji) {
+        console.log("Wchodzę do sekcji:", kodSekcji);
+        // Tutaj możesz przekierować na stronę z zadaniami danej sekcji
+        // window.location.href = `widok_sekcji.html?kod=${kodSekcji}`;
+        alert("Wchodzisz do sekcji: " + kodSekcji + "\n(Strona z zawartością sekcji jest w budowie)");
     }
 
     // --- FUNKCJA PRZEJŚCIA PO KLIKNIĘCIU W SEKCJĘ ---
