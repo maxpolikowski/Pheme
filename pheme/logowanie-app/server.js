@@ -20,7 +20,6 @@ app.use(cors({
     allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-// Serwowanie plików statycznych (aby wygenerowane .html były dostępne)
 app.use(express.static(__dirname));
 
 // 🔒 Limiter IP
@@ -117,57 +116,21 @@ app.post("/update-profile", auth, async (req, res) => {
 
 // --- ENDPOINTY SEKCJI ---
 
-function generujSzablonSekcji(nazwa, kod) {
-    return `
-<!DOCTYPE html>
-<html lang="pl">
-<head>
-    <meta charset="UTF-8">
-    <title>Sekcja - ${nazwa}</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f5f5f5; text-align: center; padding: 50px; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: inline-block; min-width: 300px; }
-        h1 { color: #00ce52; }
-        .code { font-weight: bold; color: #555; font-size: 1.2rem; background: #eee; padding: 10px; border-radius: 5px; }
-        .back-link { margin-top: 20px; display: block; color: #333; text-decoration: none; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h1>Sekcja: ${nazwa}</h1>
-        <p>Kod dołączenia:</p>
-        <div class="code">${kod}</div>
-        <hr>
-        <p>Witaj w panelu sekcji!</p>
-        <a href="sekcje.html" class="back-link">← Wróć do listy sekcji</a>
-    </div>
-</body>
-</html>`;
-}
-
 app.post("/create-section", auth, admin, (req, res) => {
     const { name, code } = req.body;
     let sections = loadSections();
-
-    if (sections.find(s => s.code === code)) {
-        return res.status(400).json({ message: "Sekcja o tym kodzie już istnieje" });
-    }
-
+    if (sections.find(s => s.code === code)) return res.status(400).json({ message: "Sekcja już istnieje" });
     const newSection = {
         name,
         code,
         creator: req.user.username,
-        members: [{ username: req.user.username, role: "nauczyciel" }] 
+        members: [{ username: req.user.username, role: "nauczyciel" }],
+        notes: [],
+        feedbacks: []
     };
-
     sections.push(newSection);
     saveSections(sections);
-
-    // ZAMIAST TWORZYĆ PLIK, PO PROSTU POTWIERDZAMY SUKCES
-    res.json({ 
-        message: "Sekcja utworzona pomyślnie!",
-        code: code 
-    });
+    res.json({ message: "Sekcja utworzona pomyślnie!", code });
 });
 
 app.post("/join-section", auth, (req, res) => {
@@ -175,9 +138,7 @@ app.post("/join-section", auth, (req, res) => {
     let sections = loadSections();
     const section = sections.find(s => s.code === code);
     if (!section) return res.status(404).json({ message: "Zły kod sekcji" });
-    if (section.members.find(m => m.username === req.user.username)) {
-        return res.status(400).json({ message: "Już tu jesteś!" });
-    }
+    if (section.members.find(m => m.username === req.user.username)) return res.status(400).json({ message: "Już tu jesteś!" });
     section.members.push({ username: req.user.username, role: "user" });
     saveSections(sections);
     res.json({ message: "Dołączono do sekcji: " + section.name });
@@ -194,138 +155,71 @@ app.get("/moje-sekcje", auth, (req, res) => {
         }));
     res.json(mySections);
 });
+
 app.get("/section-members/:code", auth, (req, res) => {
     const sections = loadSections();
     const section = sections.find(s => s.code === req.params.code);
-
     if (!section) return res.status(404).json({ message: "Nie ma takiej sekcji" });
-
-    // Sprawdzamy, czy osoba pytająca należy do sekcji
-    const isMember = section.members.some(m => m.username === req.user.username);
-    if (!isMember) return res.status(403).json({ message: "Brak dostępu" });
-
-    // Pobieramy wszystkich użytkowników, żeby wyciągnąć ich prawdziwe imiona
+    if (!section.members.some(m => m.username === req.user.username)) return res.status(403).json({ message: "Brak dostępu" });
     const allUsers = loadUsers();
-
-    // Mapujemy członków sekcji tak, aby dołączyć ich pole 'name'
     const membersWithNames = section.members.map(member => {
         const userDetails = allUsers.find(u => u.username === member.username);
         return {
             username: member.username,
-            name: userDetails ? userDetails.name : "Brak imienia", // Tu wyciągamy imię
+            name: userDetails ? userDetails.name : "Brak imienia",
             role: member.role
         };
     });
-
     res.json(membersWithNames);
 });
-app.post("/promote-to-teacher", auth, admin, (req, res) => {
-    const { code, targetUsername } = req.body;
-    let sections = loadSections();
-    const section = sections.find(s => s.code === code);
 
-    if (!section) return res.status(404).json({ message: "Nie znaleziono sekcji" });
+// --- LEKCJE / NOTATKI ---
 
-    // Znajdujemy użytkownika w tej sekcji
-    const targetMember = section.members.find(m => m.username === targetUsername);
-    if (!targetMember) return res.status(404).json({ message: "Użytkownik nie należy do tej sekcji" });
-
-    // Zmieniamy rolę na nauczyciela
-    targetMember.role = "nauczyciel";
-    
-    saveSections(sections);
-    res.json({ message: `Użytkownik ${targetUsername} został mianowany nauczycielem przez Administratora!` });
-});
-app.post("/reset", auth, admin, (req, res) => {
-    let users = loadUsers();
-    saveUsers(users.filter(u => u.role === "admin"));
-    saveSections([]);
-    res.send("Baza zresetowana");
-});
-// Endpoint do pobierania notatek danej sekcji
 app.get("/section-notes/:code", auth, (req, res) => {
     const sections = loadSections();
     const section = sections.find(s => s.code === req.params.code);
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
-    
-    // Zwracamy notatki (jeśli nie ma żadnych, zwracamy pustą tablicę)
     res.json(section.notes || []);
 });
 
-// Endpoint do dodawania notatki (tylko nauczyciel/admin)
 app.post("/add-note", auth, (req, res) => {
     const { code, lessonName, link1, link2 } = req.body;
     let sections = loadSections();
     const section = sections.find(s => s.code === code);
-
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
-
-    // Sprawdzenie uprawnień: czy użytkownik jest nauczycielem w TEJ sekcji
     const member = section.members.find(m => m.username === req.user.username);
     if (!member || (member.role !== "nauczyciel" && req.user.role !== "admin")) {
-        return res.status(403).json({ message: "Tylko nauczyciel może dodawać notatki" });
+        return res.status(403).json({ message: "Brak uprawnień" });
     }
-
     if (!section.notes) section.notes = [];
-    
-    section.notes.push({
-        id: Date.now(),
-        lessonName,
-        link1,
-        link2,
-        date: new Date().toISOString().split('T')[0]
-    });
-
+    section.notes.push({ id: Date.now(), lessonName, link1, link2, date: new Date().toISOString().split('T')[0] });
     saveSections(sections);
     res.json({ message: "Notatka dodana!" });
 });
-// Endpoint do usuwania notatki (tylko nauczyciel tej sekcji lub admin)
+
 app.delete("/delete-note/:code/:noteId", auth, (req, res) => {
     const { code, noteId } = req.params;
     let sections = loadSections();
     const section = sections.find(s => s.code === code);
-
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
-
-    // Sprawdzenie uprawnień
     const member = section.members.find(m => m.username === req.user.username);
-    const isTeacher = member && member.role === "nauczyciel";
-    const isAdmin = req.user.role === "admin";
-
-    if (!isTeacher && !isAdmin) {
-        return res.status(403).json({ message: "Brak uprawnień do usuwania" });
-    }
-
-    // Filtrowanie notatek (usuwamy tę o podanym ID)
-    const initialLength = section.notes ? section.notes.length : 0;
+    if (!member || (member.role !== "nauczyciel" && req.user.role !== "admin")) return res.status(403).json({ message: "Brak uprawnień" });
     section.notes = (section.notes || []).filter(n => n.id.toString() !== noteId.toString());
-
-    if (section.notes.length === initialLength) {
-        return res.status(404).json({ message: "Nie znaleziono notatki o podanym ID" });
-    }
-
     saveSections(sections);
-    res.json({ message: "Lekcja została usunięta" });
+    res.json({ message: "Usunięto lekcję" });
 });
-// --- ENDPOINTY FEEDBACKU ---
 
-// 1. Dodawanie feedbacku przez ucznia
+// --- SYSTEM FEEDBACKU ---
+
 app.post("/add-feedback", auth, (req, res) => {
     const { code, lessonName, message } = req.body;
     let sections = loadSections();
     const section = sections.find(s => s.code === code);
-
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
-
-    // Inicjalizacja tablicy feedbacku, jeśli nie istnieje
     if (!section.feedbacks) section.feedbacks = [];
-
-    // Pobieramy imię użytkownika (opcjonalnie)
     const users = loadUsers();
     const currentUser = users.find(u => u.username === req.user.username);
     const authorName = currentUser && currentUser.name ? currentUser.name : req.user.username;
-
-    // Dodajemy nową wiadomość
     section.feedbacks.push({
         id: Date.now(),
         lessonName,
@@ -334,48 +228,49 @@ app.post("/add-feedback", auth, (req, res) => {
         username: req.user.username,
         date: new Date().toLocaleString("pl-PL")
     });
-
     saveSections(sections);
-    res.json({ message: "Feedback został wysłany!" });
+    res.json({ message: "Wysłano!" });
 });
 
-// 2. Pobieranie feedbacku danej sekcji (tylko dla nauczyciela tej sekcji lub admina)
 app.get("/section-feedback/:code", auth, (req, res) => {
     const sections = loadSections();
     const section = sections.find(s => s.code === req.params.code);
-
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
-
-    // Sprawdzenie uprawnień: czy użytkownik jest nauczycielem w TEJ sekcji lub adminem
     const member = section.members.find(m => m.username === req.user.username);
     const isTeacher = member && member.role === "nauczyciel";
     const isAdmin = req.user.role === "admin";
-
-    if (!isTeacher && !isAdmin) {
-        return res.status(403).json({ message: "Tylko nauczyciel może przeglądać feedback" });
+    const allFbs = section.feedbacks || [];
+    // Jeśli nauczyciel/admin -> widzi wszystko. Jeśli uczeń -> widzi tylko swoje.
+    if (isTeacher || isAdmin) {
+        res.json(allFbs);
+    } else {
+        res.json(allFbs.filter(f => f.username === req.user.username));
     }
-
-    res.json(section.feedbacks || []);
 });
-// Edycja własnego feedbacku
+
 app.post("/edit-feedback", auth, (req, res) => {
     const { code, lessonName, newMessage } = req.body;
     let sections = loadSections();
     const section = sections.find(s => s.code === code);
-
-    if (!section || !section.feedbacks) return res.status(404).json({ message: "Nie znaleziono" });
-
-    // Szukamy feedbacku tego konkretnego użytkownika do tej konkretnej lekcji
+    if (!section || !section.feedbacks) return res.status(404).json({ message: "Błąd" });
+    // Szukamy konkretnego wpisu tego usera do tej lekcji
     const feedback = section.feedbacks.find(f => f.username === req.user.username && f.lessonName === lessonName);
-
-    if (!feedback) return res.status(404).json({ message: "Nie znalazłeś swojego feedbacku do edycji" });
-
+    if (!feedback) return res.status(404).json({ message: "Nie znaleziono Twojej opinii" });
     feedback.message = newMessage;
-    feedback.edited = true; // Flaga edycji
+    feedback.edited = true;
     feedback.date = new Date().toLocaleString("pl-PL") + " (edytowano)";
-
     saveSections(sections);
-    res.json({ message: "Zaktualizowano feedback!" });
+    res.json({ message: "Zaktualizowano!" });
 });
+
+// --- INNE ---
+
+app.post("/reset", auth, admin, (req, res) => {
+    let users = loadUsers();
+    saveUsers(users.filter(u => u.role === "admin"));
+    saveSections([]);
+    res.send("Baza zresetowana");
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Serwer Pheme działa na porcie " + PORT));
+app.listen(PORT, () => console.log("Serwer działa na porcie " + PORT));

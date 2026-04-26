@@ -328,25 +328,25 @@
     const container = document.getElementById('feedback-container');
     
     try {
-        // Pobieramy notatki (lekcje)
+        // 1. Pobieramy lekcje (notatki)
         const notesRes = await fetch(`${API_URL}/section-notes/${kod}`, {
             headers: { "Authorization": "Bearer " + token }
         });
         const notes = await notesRes.json();
 
-        // Pobieramy feedbacki dla tej sekcji
+        // 2. Pobieramy feedbacki
         const fbRes = await fetch(`${API_URL}/section-feedback/${kod}`, {
             headers: { "Authorization": "Bearer " + token }
         });
         const allFeedbacks = await fbRes.json();
 
         if (rola === "nauczyciel") {
-            // WIDOK NAUCZYCIELA
+            // --- WIDOK NAUCZYCIELA ---
             if (allFeedbacks.length === 0) {
-                container.innerHTML = "<p>Brak nadesłanych opinii.</p>";
+                container.innerHTML = "<p>Brak nadesłanych opinii od uczniów.</p>";
                 return;
             }
-            container.innerHTML = "<h3>Otrzymany Feedback:</h3>" + allFeedbacks.reverse().map(f => `
+            container.innerHTML = "<h3>Otrzymany Feedback:</h3>" + [...allFeedbacks].reverse().map(f => `
                 <div class="feedback-item" style="background: white;">
                     <small>Lekcja: <strong>${f.lessonName}</strong> | Od: ${f.author} ${f.edited ? '<b style="color:orange;">(EDYTYWANE)</b>' : ''}</small>
                     <div style="margin-top:5px;">${f.message}</div>
@@ -354,30 +354,44 @@
             `).join('');
 
         } else {
-            // WIDOK UCZNIA
-            const mojProfil = await (await fetch(`${API_URL}/profil`, {headers:{"Authorization":"Bearer "+token}})).json();
+            // --- WIDOK UCZNIA ---
+            if (notes.length === 0) {
+                container.innerHTML = "<p>Nauczyciel nie dodał jeszcze żadnych lekcji, do których mógłbyś wystawić opinię.</p>";
+                return;
+            }
 
-            container.innerHTML = notes.reverse().map((n, index) => {
-                // Szukamy czy ten uczeń już wysłał feedback do tej lekcji
+            const profilRes = await fetch(`${API_URL}/profil`, {headers:{"Authorization":"Bearer "+token}});
+            const mojProfil = await profilRes.json();
+
+            // KLUCZOWA ZMIANA: Renderujemy kafelki dla KAŻDEJ lekcji, którą dodał nauczyciel
+            container.innerHTML = [...notes].reverse().map((n, index) => {
+                // Sprawdzamy czy uczeń już wysłał feedback do TEJ konkretnej lekcji
                 const mojStaryFB = allFeedbacks.find(f => f.lessonName === n.lessonName && f.username === mojProfil.username);
+                
                 const istniejacaTresc = mojStaryFB ? mojStaryFB.message : "";
-                const czyEdycja = mojStaryFB ? true : false;
+                const czyEdycja = !!mojStaryFB; // true jeśli feedback już istnieje
 
                 return `
                     <div class="feedback-item">
-                        <strong>${n.lessonName}</strong>
-                        <textarea id="fb-text-${index}" placeholder="Twoja opinia...">${istniejacaTresc}</textarea>
+                        <div style="margin-bottom: 8px;">
+                            <small style="color: #888;">Lekcja z dnia: ${n.date}</small><br>
+                            <strong style="font-size: 1.1rem;">${n.lessonName}</strong>
+                        </div>
+                        <textarea id="fb-text-${index}" placeholder="Twoja opinia o tej lekcji...">${istniejacaTresc}</textarea>
                         <button class="btn-send-fb" id="btn-fb-${index}" 
                             onclick="obsluzFeedback('${n.lessonName}', ${index}, ${czyEdycja})"
-                            style="background: ${czyEdycja ? '#ff9800' : '#007bff'}">
-                            ${czyEdycja ? 'Zapisz zmiany (Edytuj)' : 'Wyślij opinię'}
+                            style="background: ${czyEdycja ? '#ff9800' : '#007bff'}; width: 100%; margin-top: 10px;">
+                            ${czyEdycja ? 'Zaktualizuj swoją opinię' : 'Wyślij opinię'}
                         </button>
-                        ${czyEdycja ? '<br><small style="color: #666;">Napisałeś już opinię. Możesz ją zmienić powyżej.</small>' : ''}
+                        ${czyEdycja ? `<div style="margin-top: 8px; font-size: 0.8rem; color: #28a745;">Podałeś już opinię do tej lekcji. Możesz ją edytować.</div>` : ''}
                     </div>
                 `;
             }).join('');
         }
-    } catch (e) { container.innerHTML = "Błąd ładowania."; }
+    } catch (e) { 
+        console.error("Błąd feedbacku:", e);
+        container.innerHTML = "<p style='color:red;'>Błąd podczas ładowania modułu feedbacku.</p>"; 
+    }
 }
 
 async function obsluzFeedback(lessonName, index, czyEdycja) {
