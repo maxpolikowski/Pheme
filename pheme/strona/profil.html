@@ -10,6 +10,7 @@
             --bg-gray: #e0e0e0;
             --dark-gray: #333333;
             --red-header: #ff3b3b;
+            --sigma-purple: #ff00ff;
         }
 
         body {
@@ -65,7 +66,7 @@
             display: flex;
             gap: 20px;
             justify-content: center;
-            flex-wrap: wrap; /* Pozwala na ułożenie jeden pod drugim na małych ekranach */
+            flex-wrap: wrap;
         }
 
         .card {
@@ -100,7 +101,7 @@
             font-size: 0.9rem;
         }
         
-        /* Tekst statyczny dla loginu */
+        /* Tekst statyczny */
         .static-text {
             padding: 12px 15px;
             background: var(--bg-gray);
@@ -172,6 +173,11 @@
             <h2>Ustawienia osobiste</h2>
             
             <div class="form-group">
+                <label>Twoja rola w systemie</label>
+                <div class="static-text" id="display-role" style="border-left: 4px solid var(--primary-green);">Ładowanie...</div>
+            </div>
+
+            <div class="form-group">
                 <label>Twój Login (nie można zmienić)</label>
                 <div class="static-text" id="display-login">Ładowanie...</div>
             </div>
@@ -186,32 +192,32 @@
             <button class="submit-btn" onclick="zapiszImie()">Zapisz dane</button>
         </div>
 
-       <div class="card">
-    <h2>Zmiana hasła</h2>
-    
-        <div class="form-group">
-            <label>Stare hasło</label>
-            <div class="input-box">
-                <input id="p_old_pass" type="password" placeholder="Wpisz aktualne hasło">
+        <div class="card">
+            <h2>Zmiana hasła</h2>
+            
+            <div class="form-group">
+                <label>Stare hasło</label>
+                <div class="input-box">
+                    <input id="p_old_pass" type="password" placeholder="Wpisz aktualne hasło">
+                </div>
             </div>
-        </div>
 
-        <div class="form-group">
-            <label>Nowe hasło</label>
-            <div class="input-box">
-                <input id="p_new_pass" type="password" placeholder="Wpisz nowe hasło">
+            <div class="form-group">
+                <label>Nowe hasło</label>
+                <div class="input-box">
+                    <input id="p_new_pass" type="password" placeholder="Wpisz nowe hasło">
+                </div>
             </div>
-        </div>
 
-        <div class="form-group">
-            <label>Powtórz nowe hasło</label>
-            <div class="input-box">
-                <input id="p_repeat_pass" type="password" placeholder="Powtórz nowe hasło">
+            <div class="form-group">
+                <label>Powtórz nowe hasło</label>
+                <div class="input-box">
+                    <input id="p_repeat_pass" type="password" placeholder="Powtórz nowe hasło">
+                </div>
             </div>
-        </div>
 
-        <button class="submit-btn" onclick="zmienHaslo()">Zmień hasło</button>
-    </div>
+            <button class="submit-btn" onclick="zmienHaslo()">Zmień hasło</button>
+        </div>
     </div>
 
     <p id="wynik"></p>
@@ -221,7 +227,6 @@
     const API_URL = "https://pheme-spmz.onrender.com";
     const token = localStorage.getItem("token");
 
-    // Sprawdzenie autoryzacji
     if (!token) {
         window.location.href = "index.html";
     }
@@ -231,7 +236,6 @@
         window.location.href = "index.html";
     }
 
-    // POBIERANIE DANYCH PROFILU PO ZAŁADOWANIU STRONY
     window.onload = async () => {
         try {
             const res = await fetch(`${API_URL}/profil`, {
@@ -242,19 +246,27 @@
                 const data = await res.json();
                 document.getElementById("display-login").innerText = data.username;
                 document.getElementById("p_name").value = data.name || "";
+
+                // Obsługa wyświetlania roli
+                const roleEl = document.getElementById("display-role");
+                if (data.username === "TWÓJ_SUPER_LOGIN") {
+                    roleEl.innerText = "polska_sigma";
+                    roleEl.style.color = "var(--sigma-purple)";
+                    roleEl.style.borderLeftColor = "var(--sigma-purple)";
+                } else {
+                    roleEl.innerText = data.role || "user";
+                }
             } else {
-                logout(); // Jeśli token wygasł lub jest zły
+                logout();
             }
         } catch (e) {
             console.error("Błąd pobierania profilu:", e);
         }
     };
 
-    // FUNKCJA: ZMIANA IMIENIA
     async function zapiszImie() {
         const newName = document.getElementById("p_name").value.trim();
         const wynikEl = document.getElementById("wynik");
-
         wynikEl.style.color = "#333";
         wynikEl.innerText = "Zapisywanie...";
 
@@ -282,56 +294,53 @@
         }
     }
 
-    // FUNKCJA: ZMIANA HASŁA
     async function zmienHaslo() {
-    const oldPass = document.getElementById("p_old_pass").value.trim();
-    const newPass = document.getElementById("p_new_pass").value.trim();
-    const repeatPass = document.getElementById("p_repeat_pass").value.trim();
-    const wynikEl = document.getElementById("wynik");
+        const oldPass = document.getElementById("p_old_pass").value.trim();
+        const newPass = document.getElementById("p_new_pass").value.trim();
+        const repeatPass = document.getElementById("p_repeat_pass").value.trim();
+        const wynikEl = document.getElementById("wynik");
 
-    if (!oldPass || !newPass || !repeatPass) {
-        wynikEl.style.color = "var(--red-header)";
-        wynikEl.innerText = "Wypełnij wszystkie pola!";
-        return;
-    }
-
-    if (newPass !== repeatPass) {
-        wynikEl.style.color = "var(--red-header)";
-        wynikEl.innerText = "Nowe hasła nie są identyczne!";
-        return;
-    }
-
-    try {
-        const res = await fetch(`${API_URL}/update-profile`, {
-            method: "POST",
-            headers: { 
-                "Content-Type": "application/json",
-                "Authorization": "Bearer " + token
-            },
-            body: JSON.stringify({ 
-                oldPassword: oldPass, 
-                newPassword: newPass 
-            }) 
-        });
-
-        const data = await res.json();
-        
-        if (res.ok) {
-            wynikEl.style.color = "var(--primary-green)";
-            wynikEl.innerText = "Hasło zostało zmienione!";
-            // Czyścimy wszystkie pola haseł
-            document.getElementById("p_old_pass").value = "";
-            document.getElementById("p_new_pass").value = "";
-            document.getElementById("p_repeat_pass").value = "";
-        } else {
+        if (!oldPass || !newPass || !repeatPass) {
             wynikEl.style.color = "var(--red-header)";
-            wynikEl.innerText = data.message;
+            wynikEl.innerText = "Wypełnij wszystkie pola!";
+            return;
         }
-    } catch (e) {
-        wynikEl.style.color = "var(--red-header)";
-        wynikEl.innerText = "Błąd połączenia";
+
+        if (newPass !== repeatPass) {
+            wynikEl.style.color = "var(--red-header)";
+            wynikEl.innerText = "Nowe hasła nie są identyczne!";
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_URL}/update-profile`, {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({ 
+                    oldPassword: oldPass, 
+                    newPassword: newPass 
+                }) 
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                wynikEl.style.color = "var(--primary-green)";
+                wynikEl.innerText = "Hasło zostało zmienione!";
+                document.getElementById("p_old_pass").value = "";
+                document.getElementById("p_new_pass").value = "";
+                document.getElementById("p_repeat_pass").value = "";
+            } else {
+                wynikEl.style.color = "var(--red-header)";
+                wynikEl.innerText = data.message;
+            }
+        } catch (e) {
+            wynikEl.style.color = "var(--red-header)";
+            wynikEl.innerText = "Błąd połączenia";
+        }
     }
-}
 </script>
 
 </body>
