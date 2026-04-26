@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pheme - Twoje Pytania</title>
+    <title>Pheme - Wiadomości</title>
     <style>
         :root {
             --primary-green: #00ce52;
             --bg-gray: #f5f5f5;
             --dark-gray: #333333;
             --red-header: #ff3b3b;
-            --blue-feedback: #007bff;
+            --blue-msg: #007bff;
+            --purple-msg: #6f42c1;
         }
 
         body {
@@ -37,7 +38,6 @@
             margin-top: 20px;
         }
 
-        /* Menu nawigacyjne identyczne jak w start.html */
         .nav-menu {
             display: flex;
             flex-wrap: wrap;
@@ -62,32 +62,39 @@
             padding: 20px;
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            min-height: 400px;
         }
 
-        /* Style dla wątków i powiadomień */
         .thread-item {
-            border-left: 4px solid purple;
+            border-left: 5px solid #ccc;
             background: white;
             padding: 15px;
             margin-bottom: 20px;
             border-radius: 0 12px 12px 0;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            transition: transform 0.2s;
+            transition: 0.2s;
         }
 
+        /* Kolory dla ról */
+        .role-sent { border-left-color: var(--purple-msg); }
+        .role-received { border-left-color: var(--blue-msg); }
+
         .q-new-indicator {
-            border-left: 8px solid #ff3b3b !important;
+            border-left-width: 10px !important;
+            border-left-color: #ff3b3b !important;
             background-color: #fff5f5 !important;
         }
 
-        .new-badge {
-            background: #ff3b3b;
-            color: white;
+        .badge {
             padding: 2px 8px;
-            border-radius: 5px;
+            border-radius: 4px;
             font-size: 0.75rem;
-            margin-left: 10px;
+            font-weight: bold;
+            margin-right: 5px;
         }
+        .badge-sent { background: #e2d9f3; color: var(--purple-msg); }
+        .badge-received { background: #d9e9ff; color: var(--blue-msg); }
+        .badge-new { background: #ff3b3b; color: white; margin-left: 10px; }
 
         .section-tag {
             background: #eee;
@@ -102,14 +109,12 @@
             padding: 10px;
             border-radius: 8px;
             border: 1px solid #ccc;
-            font-family: inherit;
-            box-sizing: border-box;
             margin-top: 10px;
             resize: vertical;
         }
 
         .btn-reply {
-            background: purple;
+            background: var(--dark-gray);
             color: white;
             border: none;
             padding: 10px 20px;
@@ -123,14 +128,15 @@
             background: #f9f9f9;
             padding: 10px;
             border-radius: 8px;
-            margin-top: 10px;
-            font-size: 0.95rem;
+            margin-top: 8px;
+            font-size: 0.9rem;
+            border: 1px solid #eee;
         }
     </style>
 </head>
 <body>
 
-<div class="header-bar">Pheme - Twoje Pytania</div>
+<div class="header-bar">Pheme - Centrum Wiadomości</div>
 
 <div class="container">
     <div class="nav-menu">
@@ -142,10 +148,8 @@
     </div>
 
     <div class="content-card">
-        <h2>Ostatnie wątki</h2>
-        <p style="color: #888;">Tutaj znajdziesz pytania, które zadałeś we wszystkich swoich sekcjach.</p>
-        <hr>
-        <div id="pytania-global-list">Ładowanie Twoich konwersacji...</div>
+        <h2 style="margin-top:0">Twoja skrzynka</h2>
+        <div id="pytania-global-list">Ładowanie wszystkich wiadomości...</div>
     </div>
 </div>
 
@@ -157,33 +161,31 @@
         if (!token) window.location.href = "index.html";
         
         try {
-            // 1. Pobierz profil, by znać swój username
             const profRes = await fetch(`${API_URL}/profil`, { headers: { "Authorization": "Bearer " + token } });
             const profil = await profRes.json();
             const myUsername = profil.username;
 
-            // 2. Pobierz listę sekcji
             const sekcjeRes = await fetch(`${API_URL}/moje-sekcje`, { headers: { "Authorization": "Bearer " + token } });
             const sekcje = await sekcjeRes.json();
 
-            let allMyQuestions = [];
+            let allQuestions = [];
 
-            // 3. Pobierz pytania z KAŻDEJ sekcji w tym samym czasie
+            // Pobieranie danych ze wszystkich sekcji
             const promises = sekcje.map(async (s) => {
                 const qRes = await fetch(`${API_URL}/section-questions/${s.kod}`, { headers: { "Authorization": "Bearer " + token } });
                 const questions = await qRes.json();
                 
-                // Dodajemy informację z jakiej sekcji jest pytanie i filtrujemy (tylko nasze)
                 return questions
-                    .filter(q => q.fromUsername === myUsername)
+                    // FILTR: Pytania wysłane PRZEZ MNIE lub DO MNIE
+                    .filter(q => q.fromUsername === myUsername || q.to.includes(myUsername))
                     .map(q => ({ ...q, sectionName: s.name, sectionKod: s.kod }));
             });
 
             const results = await Promise.all(promises);
-            allMyQuestions = results.flat();
+            allQuestions = results.flat();
 
-            // 4. Obsługa statusu "Nowe" i sortowanie
-            allMyQuestions = allMyQuestions.map(q => {
+            // Logika "Nowości" i sortowanie
+            allQuestions = allQuestions.map(q => {
                 const storageKey = `seen_${myUsername}_${q.sectionKod}`;
                 const seenData = JSON.parse(localStorage.getItem(storageKey) || "{}");
                 
@@ -191,43 +193,51 @@
                 const lastSeenCount = seenData[q.id] || 0;
                 
                 const lastMsg = q.replies && q.replies.length > 0 ? q.replies[q.replies.length - 1] : q;
+                
+                // Nowa, jeśli licznik się zwiększył I ostatnia wiadomość nie jest od nas
                 const isNew = currentTotal > lastSeenCount && lastMsg.fromUsername !== myUsername;
                 
                 return { ...q, isNew, currentTotal };
             });
 
-            // Sortuj: najpierw nowe, potem po dacie (najnowsze ID)
-            allMyQuestions.sort((a, b) => (b.isNew - a.isNew) || (b.id - a.id));
+            // Sortowanie: Nowe na górę, potem najnowsza data
+            allQuestions.sort((a, b) => (b.isNew - a.isNew) || (b.id - a.id));
 
-            renderujPytania(allMyQuestions, myUsername);
+            renderujPytania(allQuestions, myUsername);
 
         } catch (e) {
             console.error(e);
-            document.getElementById('pytania-global-list').innerHTML = "Błąd podczas ładowania pytań.";
+            document.getElementById('pytania-global-list').innerHTML = "Błąd połączenia z serwerem.";
         }
     }
 
     function renderujPytania(questions, myUsername) {
         const container = document.getElementById('pytania-global-list');
         if (questions.length === 0) {
-            container.innerHTML = "<p>Nie zadałeś jeszcze żadnych pytań w swoich sekcjach.</p>";
+            container.innerHTML = "<p>Nie masz żadnych wiadomości.</p>";
             return;
         }
 
         container.innerHTML = questions.map(q => {
+            const isFromMe = q.fromUsername === myUsername;
+            const roleClass = isFromMe ? 'role-sent' : 'role-received';
+            const roleBadge = isFromMe ? '<span class="badge badge-sent">Wysłane</span>' : '<span class="badge badge-received">Odebrane</span>';
             const newClass = q.isNew ? 'q-new-indicator' : '';
-            const newBadge = q.isNew ? '<span class="new-badge">NOWA ODPOWIEDŹ</span>' : '';
+            const newBadge = q.isNew ? '<span class="badge badge-new">NOWA WIADOMOŚĆ</span>' : '';
 
             return `
-                <div class="thread-item ${newClass}" onclick="oznaczPrzeczytane('${q.sectionKod}', '${q.id}', ${q.currentTotal}, '${myUsername}')">
+                <div class="thread-item ${roleClass} ${newClass}" onclick="oznaczPrzeczytane('${q.sectionKod}', '${q.id}', ${q.currentTotal}, '${myUsername}')">
                     <div style="display:flex; justify-content:space-between; align-items:start;">
-                        <span class="section-tag">${q.sectionName}</span>
+                        <div>
+                            ${roleBadge}
+                            <span class="section-tag">${q.sectionName}</span>
+                        </div>
                         <small style="color:#aaa">${q.date}</small>
                     </div>
-                    <h3 style="margin:10px 0 5px 0;">${q.subject} ${newBadge}</h3>
-                    <p style="margin:0 0 15px 0; color:#444;">${q.text}</p>
+                    <h3 style="margin:12px 0 5px 0;">${q.subject} ${newBadge}</h3>
+                    <p style="margin:0 0 15px 0; color:#333;"><strong>${q.from}:</strong> ${q.text}</p>
                     
-                    <div style="padding-left:15px; border-left: 2px solid #ddd;">
+                    <div style="margin-left:10px; padding-left:15px; border-left: 2px solid #eee;">
                         ${(q.replies || []).map(r => `
                             <div class="reply-box">
                                 <strong>${r.from}:</strong> ${r.text}
@@ -236,8 +246,8 @@
                     </div>
 
                     <div style="margin-top:15px; display:flex; gap:10px;" onclick="event.stopPropagation()">
-                        <textarea id="reply-input-${q.id}" placeholder="Odpowiedz w tym wątku..."></textarea>
-                        <button class="btn-reply" onclick="wyslijOdpowiedz('${q.sectionKod}', '${q.id}')">Wyślij</button>
+                        <textarea id="reply-input-${q.id}" placeholder="Napisz odpowiedź..."></textarea>
+                        <button class="btn-reply" onclick="wyslijOdpowiedz('${q.sectionKod}', '${q.id}')">Odpowiedz</button>
                     </div>
                 </div>
             `;
@@ -246,7 +256,7 @@
 
     async function wyslijOdpowiedz(kod, questionId) {
         const text = document.getElementById(`reply-input-${questionId}`).value.trim();
-        if (!text) return alert("Wpisz treść!");
+        if (!text) return alert("Wpisz treść wiadomości!");
 
         try {
             const res = await fetch(`${API_URL}/reply-question`, {
@@ -255,10 +265,10 @@
                 body: JSON.stringify({ code: kod, questionId: questionId, text: text })
             });
             if (res.ok) {
-                alert("✅ Wysłano odpowiedź!");
-                inicjalizuj(); // Odśwież listę
+                document.getElementById(`reply-input-${questionId}`).value = "";
+                inicjalizuj();
             }
-        } catch (e) { alert("Błąd wysyłania."); }
+        } catch (e) { alert("Błąd serwera."); }
     }
 
     function oznaczPrzeczytane(kod, qId, count, user) {
@@ -266,7 +276,6 @@
         const data = JSON.parse(localStorage.getItem(key) || "{}");
         data[qId] = count;
         localStorage.setItem(key, JSON.stringify(data));
-        // Odświeżamy kolory bez przeładowania strony
         inicjalizuj();
     }
 
