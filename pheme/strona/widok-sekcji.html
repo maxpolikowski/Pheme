@@ -260,87 +260,72 @@
         document.getElementById(tabName).classList.add('active');
         evt.currentTarget.classList.add('active');
         if (tabName === 'pytania') przygotujPytania();
+        if (tabName === 'lista-czlonkow') pobierzCzlonkow();
     }
 
     async function pobierzNotatki() {
-    try {
-        const res = await fetch(`${API_URL}/section-notes/${kod}`, { headers: { "Authorization": "Bearer " + token } });
-        const notes = await res.json();
-        
-        // Sprawdzenie roli, by wiedzieć czy pokazać przycisk usuwania
-        const sekcjeRes = await fetch(`${API_URL}/moje-sekcje`, { headers: { "Authorization": "Bearer " + token } });
-        const sekcje = await sekcjeRes.json();
-        const taSekcja = sekcje.find(s => s.kod === kod);
-        const czyNauczyciel = taSekcja && taSekcja.rola === "nauczyciel";
-
-        const container = document.getElementById('lista-notatek');
-        if (!notes || notes.length === 0) { container.innerHTML = "<p>Brak notatek.</p>"; return; }
-        
-        container.innerHTML = [...notes].reverse().map(n => `
-            <div class="note-item">
-                <div style="display:flex; justify-content:space-between; align-items:start;">
-                    <div>
-                        <small>${n.date}</small><br><strong>${n.lessonName}</strong>
+        try {
+            const res = await fetch(`${API_URL}/section-notes/${kod}`, { headers: { "Authorization": "Bearer " + token } });
+            const notes = await res.json();
+            const sekcjeRes = await fetch(`${API_URL}/moje-sekcje`, { headers: { "Authorization": "Bearer " + token } });
+            const sekcje = await sekcjeRes.json();
+            const taSekcja = sekcje.find(s => s.kod === kod);
+            const czyNauczyciel = taSekcja && taSekcja.rola === "nauczyciel";
+            const container = document.getElementById('lista-notatek');
+            if (!notes || notes.length === 0) { container.innerHTML = "<p>Brak notatek.</p>"; return; }
+            container.innerHTML = [...notes].reverse().map(n => `
+                <div class="note-item">
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
+                        <div>
+                            <small>${n.date}</small><br><strong>${n.lessonName}</strong>
+                        </div>
+                        ${czyNauczyciel ? `<button onclick="usunNotatke('${n.id}')" style="background:none; border:none; color:red; cursor:pointer; font-size:0.8rem;">Usuń</button>` : ''}
                     </div>
-                    ${czyNauczyciel ? `<button onclick="usunNotatke('${n.id}')" style="background:none; border:none; color:red; cursor:pointer; font-size:0.8rem;">Usuń</button>` : ''}
+                    <div class="note-links">
+                        <a href="${n.link1}" target="_blank">🔗 Link 1</a>
+                        ${n.link2 ? `<a href="${n.link2}" target="_blank">🔗 Link 2</a>` : ''}
+                    </div>
                 </div>
-                <div class="note-links">
-                    <a href="${n.link1}" target="_blank">🔗 Link 1</a>
-                    ${n.link2 ? `<a href="${n.link2}" target="_blank">🔗 Link 2</a>` : ''}
-                </div>
-            </div>
-        `).join('');
-    } catch (e) { console.error(e); }
-}
-    async function dodajNotatke() {
-    const lessonName = document.getElementById('note-lesson-name').value.trim();
-    const link1 = document.getElementById('note-link1').value.trim();
-    const link2 = document.getElementById('note-link2').value.trim();
-
-    if (!lessonName || !link1) return alert("Podaj nazwę lekcji i przynajmniej pierwszy link!");
-
-    try {
-        const res = await fetch(`${API_URL}/add-note`, {
-            method: "POST",
-            headers: { 
-                "Content-Type": "application/json", 
-                "Authorization": "Bearer " + token 
-            },
-            body: JSON.stringify({ code: kod, lessonName, link1, link2 })
-        });
-
-        if (res.ok) {
-            alert("✅ Lekcja dodana!");
-            document.getElementById('form-dodaj-notatke').style.display = 'none';
-            // Czyszczenie pól
-            document.getElementById('note-lesson-name').value = "";
-            document.getElementById('note-link1').value = "";
-            document.getElementById('note-link2').value = "";
-            pobierzNotatki(); // Odświeżenie listy
-        } else {
-            const err = await res.json();
-            alert("Błąd: " + err.message);
-        }
-    } catch (e) {
-        console.error(e);
-        alert("Błąd połączenia z serwerem.");
+            `).join('');
+        } catch (e) { console.error(e); }
     }
-}
 
-async function usunNotatke(noteId) {
-    if (!confirm("Czy na pewno chcesz usunąć tę lekcję?")) return;
+    async function dodajNotatke() {
+        const lessonName = document.getElementById('note-lesson-name').value.trim();
+        const link1 = document.getElementById('note-link1').value.trim();
+        const link2 = document.getElementById('note-link2').value.trim();
+        if (!lessonName || !link1) return alert("Podaj nazwę lekcji i przynajmniej pierwszy link!");
+        try {
+            const res = await fetch(`${API_URL}/add-note`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+                body: JSON.stringify({ code: kod, lessonName, link1, link2 })
+            });
+            if (res.ok) {
+                alert("✅ Lekcja dodana!");
+                document.getElementById('form-dodaj-notatke').style.display = 'none';
+                document.getElementById('note-lesson-name').value = "";
+                document.getElementById('note-link1').value = "";
+                document.getElementById('note-link2').value = "";
+                pobierzNotatki();
+            } else {
+                const err = await res.json();
+                alert("Błąd: " + err.message);
+            }
+        } catch (e) { console.error(e); }
+    }
 
-    try {
-        const res = await fetch(`${API_URL}/delete-note/${kod}/${noteId}`, {
-            method: "DELETE",
-            headers: { "Authorization": "Bearer " + token }
-        });
+    async function usunNotatke(noteId) {
+        if (!confirm("Czy na pewno chcesz usunąć tę lekcję?")) return;
+        try {
+            const res = await fetch(`${API_URL}/delete-note/${kod}/${noteId}`, {
+                method: "DELETE",
+                headers: { "Authorization": "Bearer " + token }
+            });
+            if (res.ok) pobierzNotatki();
+        } catch (e) { console.error(e); }
+    }
 
-        if (res.ok) {
-            pobierzNotatki();
-        }
-    } catch (e) { console.error(e); }
-}
     async function przygotujFeedback(rola) {
         const container = document.getElementById('feedback-container');
         try {
@@ -350,22 +335,29 @@ async function usunNotatke(noteId) {
             const allFeedbacks = await fbRes.json();
 
             if (rola === "nauczyciel") {
-                container.innerHTML = allFeedbacks.reverse().map(f => `
-                    <div class="feedback-item" style="background:white; border-left: 4px solid var(--blue-feedback); box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-                        <small>Lekcja: <strong>${f.lessonName}</strong> | Od: ${f.author}</small>
-                        <div style="margin-top:5px;">${f.message}</div>
-                    </div>
-                `).join('');
+                container.innerHTML = allFeedbacks.reverse().map(f => {
+                    // Sprawdzamy czy dany feedback ma flagę 'edited' lub czy wiadomość różni się od oryginalnej (zależy od Twojego API)
+                    const etykietaEdytowano = f.edited ? `<span style="color:var(--orange-edit); font-size:0.75rem; margin-left:10px;">(edytowano)</span>` : "";
+                    
+                    return `
+                        <div class="feedback-item" style="background:white; border-left: 4px solid var(--blue-feedback); box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                            <small>Lekcja: <strong>${f.lessonName}</strong> | Od: ${f.author}${etykietaEdytowano}</small>
+                            <div style="margin-top:5px;">${f.message}</div>
+                        </div>
+                    `;
+                }).join('');
             } else {
                 const profRes = await fetch(`${API_URL}/profil`, {headers:{"Authorization":"Bearer "+token}});
                 const profil = await profRes.json();
                 container.innerHTML = [...notes].reverse().map((n, i) => {
                     const mojFB = allFeedbacks.find(f => f.lessonName === n.lessonName && f.username === profil.username);
                     const czyEdycja = !!mojFB;
-                    const kolorBtn = czyEdycja ? "#ff9800" : "#007bff";
+                    const kolorBtn = czyEdycja ? "var(--orange-edit)" : "var(--blue-feedback)";
+                    const etykietaEdytowano = czyEdycja ? `<span style="color:var(--orange-edit); font-size:0.75rem; margin-left:10px;">(edytowano)</span>` : "";
+                    
                     return `
                         <div class="feedback-item" style="border-left: 4px solid ${kolorBtn}; background: #f9f9f9;">
-                            <strong>${n.lessonName}</strong><br>
+                            <strong>${n.lessonName}</strong>${etykietaEdytowano}<br>
                             <textarea id="fb-text-${i}">${czyEdycja ? mojFB.message : ""}</textarea>
                             <button class="btn-send-fb" onclick="obsluzFeedback('${n.lessonName}', ${i}, ${czyEdycja})" style="background-color: ${kolorBtn};">
                                 ${czyEdycja ? 'Zaktualizuj opinię' : 'Wyślij opinię'}
@@ -387,6 +379,7 @@ async function usunNotatke(noteId) {
             body: JSON.stringify({ code: kod, lessonName, message: msg, newMessage: msg })
         });
         alert("✅ Zapisano!");
+        // Ponowne pobranie danych aby nauczyciel widział zmianę
         inicjalizuj();
     }
 
@@ -396,10 +389,8 @@ async function usunNotatke(noteId) {
             const memRes = await fetch(`${API_URL}/section-members/${kod}`, { headers: { "Authorization": "Bearer " + token } });
             const members = await memRes.json();
             const teachers = members.filter(m => m.role === "nauczyciel");
-
             const qRes = await fetch(`${API_URL}/section-questions/${kod}`, { headers: { "Authorization": "Bearer " + token } });
             const questions = await qRes.json();
-
             container.innerHTML = `
                 <div style="background:#f0f0f0; padding:20px; border-radius:15px; margin-bottom:20px;">
                     <h3 style="margin-top:0">Zadaj pytanie nauczycielowi</h3>
@@ -430,18 +421,13 @@ async function usunNotatke(noteId) {
         const subject = document.getElementById('q-subject').value.trim();
         const text = document.getElementById('q-text').value.trim();
         const recipients = Array.from(document.querySelectorAll('input[name="targetT"]:checked')).map(cb => cb.value);
-        
         if(!subject || !text || recipients.length === 0) return alert("Uzupełnij temat, treść i wybierz adresata!");
-
         const res = await fetch(`${API_URL}/ask-question`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
             body: JSON.stringify({ code: kod, subject: subject, question: text, recipients })
         });
-        if(res.ok) {
-            alert("✅ Pytanie wysłane!");
-            przygotujPytania();
-        }
+        if(res.ok) { alert("✅ Pytanie wysłane!"); przygotujPytania(); }
     }
 
     function dodajPrzyciskAdmina() {
@@ -454,16 +440,40 @@ async function usunNotatke(noteId) {
     }
 
     async function pobierzCzlonkow() {
-        const res = await fetch(`${API_URL}/section-members/${kod}`, { headers: { "Authorization": "Bearer " + token } });
-        const members = await res.json();
-        const aL = document.getElementById('admins-list');
-        const uL = document.getElementById('users-list');
-        aL.innerHTML = ""; uL.innerHTML = "";
-        members.forEach(m => {
-            const name = m.name || m.username;
-            if (m.role === "nauczyciel") aL.innerHTML += `<div class="user-row"><strong>${name}</strong></div>`;
-            else uL.innerHTML += `<div class="user-row">${name}</div>`;
-        });
+        try {
+            const profRes = await fetch(`${API_URL}/profil`, { headers: { "Authorization": "Bearer " + token } });
+            const profil = await profRes.json();
+            const res = await fetch(`${API_URL}/section-members/${kod}`, { headers: { "Authorization": "Bearer " + token } });
+            const members = await res.json();
+            const jaWsekcji = members.find(m => m.username === profil.username);
+            const mozeNadawac = profil.role === "admin" && (jaWsekcji && jaWsekcji.role === "nauczyciel");
+            const aL = document.getElementById('admins-list');
+            const uL = document.getElementById('users-list');
+            aL.innerHTML = ""; uL.innerHTML = "";
+            members.forEach(m => {
+                const name = m.name || m.username;
+                if (m.role === "nauczyciel") {
+                    aL.innerHTML += `<div class="user-row"><strong>⭐ ${name}</strong></div>`;
+                } else {
+                    const btnAwans = mozeNadawac 
+                        ? `<button onclick="awansujNaNauczyciela('${m.username}')" style="margin-left:10px; font-size:0.7rem; cursor:pointer; background:var(--primary-green); color:white; border:none; border-radius:4px; padding:2px 5px;">Daj nauczyciela</button>` 
+                        : "";
+                    uL.innerHTML += `<div class="user-row">${name}${btnAwans}</div>`;
+                }
+            });
+        } catch (e) { console.error(e); }
+    }
+
+    async function awansujNaNauczyciela(targetUsername) {
+        if (!confirm(`Mianować ${targetUsername} nauczycielem?`)) return;
+        try {
+            const res = await fetch(`${API_URL}/promote-to-teacher`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+                body: JSON.stringify({ code: kod, targetUsername })
+            });
+            if (res.ok) { alert("✅ Awansowano!"); pobierzCzlonkow(); }
+        } catch (e) { alert("Błąd połączenia."); }
     }
 
     window.onload = inicjalizuj;

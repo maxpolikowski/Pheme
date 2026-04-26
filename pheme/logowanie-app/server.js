@@ -269,22 +269,23 @@ app.post("/promote-to-teacher", auth, (req, res) => {
 
     if (!section) return res.status(404).json({ message: "Nie znaleziono sekcji" });
 
-    // Sprawdzenie: Czy osoba wykonująca akcję ma prawo awansować?
-    const me = section.members.find(m => m.username === req.user.username);
-    const isTeacher = me && me.role === "nauczyciel";
-    const isSystemAdmin = req.user.role === "admin";
+    // Pobieramy dane o użytkowniku wewnątrz sekcji
+    const meInSection = section.members.find(m => m.username === req.user.username);
+    
+    // SPRAWDZENIE: Czy jest adminem globalnym I nauczycielem sekcji?
+    const isGlobalAdmin = req.user.role === "admin";
+    const isSectionTeacher = meInSection && meInSection.role === "nauczyciel";
 
-    if (!isTeacher && !isSystemAdmin) {
-        return res.status(403).json({ message: "Brak uprawnień do mianowania nauczycieli" });
+    if (!(isGlobalAdmin && isSectionTeacher)) {
+        return res.status(403).json({ message: "Musisz być jednocześnie Adminem i Nauczycielem sekcji, aby to zrobić." });
     }
 
     const targetMember = section.members.find(m => m.username === targetUsername);
     if (!targetMember) return res.status(404).json({ message: "Użytkownik nie należy do tej sekcji" });
 
     targetMember.role = "nauczyciel";
-    
     saveSections(sections);
-    res.json({ message: `Użytkownik ${targetUsername} został nauczycielem!` });
+    res.json({ message: `Użytkownik ${targetUsername} został mianowany nauczycielem!` });
 });
 // --- INNE ---
 
