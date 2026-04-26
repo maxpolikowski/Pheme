@@ -260,26 +260,32 @@
 
             const czyNauczyciel = document.getElementById('btn-pokaz-form-notatki').style.display === 'block';
 
-            container.innerHTML = notes.reverse().map(n => `
-                <div class="note-item">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                        <div style="flex: 1;">
-                            <div style="font-size: 0.75rem; color: #888; margin-bottom: 5px;">${n.date}</div>
-                            <strong style="font-size: 1.1rem; display: block; margin-bottom: 10px;">${n.lessonName}</strong>
+            container.innerHTML = notes.reverse().map(n => {
+                // Logika nazewnictwa linków:
+                // Jeśli n.link2 istnieje i nie jest pustym ciągiem znaków
+                const tekstLinku1 = (n.link2 && n.link2.trim() !== "") ? "🔗 Notatki 1" : "🔗 Notatki";
+                
+                return `
+                    <div class="note-item">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div style="flex: 1;">
+                                <div style="font-size: 0.75rem; color: #888; margin-bottom: 5px;">${n.date}</div>
+                                <strong style="font-size: 1.1rem; display: block; margin-bottom: 10px;">${n.lessonName}</strong>
+                            </div>
+                            ${czyNauczyciel ? `
+                                <button onclick="usunNotatke('${n.id}')" 
+                                        style="background: #ffebeb; color: #ff3b3b; border: 1px solid #ff3b3b; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; font-weight: bold;">
+                                    Usuń
+                                </button>
+                            ` : ''}
                         </div>
-                        ${czyNauczyciel ? `
-                            <button onclick="usunNotatke('${n.id}')" 
-                                    style="background: #ffebeb; color: #ff3b3b; border: 1px solid #ff3b3b; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; font-weight: bold;">
-                                Usuń
-                            </button>
-                        ` : ''}
+                        <div class="note-links">
+                            <a href="${n.link1}" target="_blank">${tekstLinku1}</a>
+                            ${(n.link2 && n.link2.trim() !== "") ? `<a href="${n.link2}" target="_blank">🔗 Notatki 2</a>` : ''}
+                        </div>
                     </div>
-                    <div class="note-links">
-                        <a href="${n.link1}" target="_blank">📄 Otwórz materiały</a>
-                        ${n.link2 ? `<a href="${n.link2}" target="_blank">🔗 Link pomocniczy</a>` : ''}
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         } catch (e) { console.error("Błąd pobierania notatek", e); }
     }
 
