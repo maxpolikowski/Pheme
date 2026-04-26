@@ -294,6 +294,47 @@ app.post("/reset", auth, admin, (req, res) => {
     saveSections([]);
     res.send("Baza zresetowana");
 });
+// Wysyłanie pytania
+app.post("/ask-question", auth, (req, res) => {
+    const { code, question, recipients } = req.body; // recipients to tablica username'ów
+    let sections = loadSections();
+    const section = sections.find(s => s.code === code);
 
+    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+    if (!section.questions) section.questions = [];
+
+    const users = loadUsers();
+    const me = users.find(u => u.username === req.user.username);
+
+    section.questions.push({
+        id: Date.now(),
+        from: me.name || me.username,
+        fromUsername: me.username,
+        text: question,
+        to: recipients, // Lista osób, które mają to dostać
+        date: new Date().toLocaleString("pl-PL"),
+        answers: [] // Tu nauczyciele będą mogli dopisywać odpowiedzi
+    });
+
+    saveSections(sections);
+    res.json({ message: "Pytanie wysłane!" });
+});
+
+// Pobieranie pytań (uczeń widzi swoje, nauczyciel te skierowane do niego)
+app.get("/section-questions/:code", auth, (req, res) => {
+    const sections = loadSections();
+    const section = sections.find(s => s.code === req.params.code);
+    if (!section) return res.status(404).json({ message: "Błąd" });
+
+    const allQs = section.questions || [];
+    const myUsername = req.user.username;
+
+    // Filtrowanie: Widzisz pytanie jeśli je zadałeś LUB jeśli jesteś na liście odbiorców
+    const filtered = allQs.filter(q => 
+        q.fromUsername === myUsername || q.to.includes(myUsername)
+    );
+
+    res.json(filtered);
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Serwer działa na porcie " + PORT));
