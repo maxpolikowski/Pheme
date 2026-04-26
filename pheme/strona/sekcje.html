@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pheme - Sekcje</title>
     <style>
-        
         :root {
             --primary-green: #00ce52;
             --bg-gray: #f5f5f5;
@@ -24,7 +23,6 @@
             min-height: 100vh;
         }
 
-        /* GÓRNY PASEK */
         .header-bar {
             width: 100%;
             max-width: 1200px;
@@ -39,7 +37,6 @@
             font-size: 1.2rem;
         }
 
-        /* GŁÓWNY UKŁAD (CSS Grid) */
         .layout-container {
             display: grid;
             grid-template-columns: 250px 1fr;
@@ -49,12 +46,13 @@
             align-items: start; 
         }
 
-        /* --- LEWA KOLUMNA (Dynamiczne Kaczki) --- */
+        /* --- SIDEBAR --- */
         .sidebar {
             display: flex;
             flex-direction: column;
             gap: 20px;
             overflow: hidden; 
+            min-height: 500px; /* Zapewnia miejsce na kaczki nawet przy pustej liście */
         }
 
         .duck-box {
@@ -76,14 +74,13 @@
             box-shadow: 0 6px 15px rgba(0,0,0,0.2);
         }
 
-        /* --- PRAWA KOLUMNA (Zawartość) --- */
+        /* --- CONTENT --- */
         .main-content {
             display: flex;
             flex-direction: column;
             gap: 20px;
         }
 
-        /* Panele akcji */
         .action-panel {
             background: white;
             padding: 20px;
@@ -96,7 +93,7 @@
             gap: 15px;
         }
 
-        .action-panel.admin-only {
+        .admin-only {
             display: none; 
             border-left: 5px solid var(--red-header);
         }
@@ -126,12 +123,9 @@
             text-decoration: none;
             text-align: center;
         }
-        .btn:hover { background: #00b347; }
         
         .btn-admin { background: var(--dark-gray); }
-        .btn-admin:hover { background: #555; }
 
-        /* Lista Sekcji */
         .sections-list {
             background: white;
             padding: 0;
@@ -140,32 +134,22 @@
             overflow: hidden;
         }
 
-        /* Nowy kolor dla nauczyciela (np. niebieski lub fioletowy) */
-        .role-nauczyciel { 
-            background: #f0ebff; 
-            color: #6c5ce7; 
-        }
-
         .section-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 18px 25px; /* Trochę większy padding dla lepszej klikalności */
+            padding: 18px 25px;
             border-bottom: 1px solid #eee;
             font-size: 1.1rem;
             transition: all 0.2s ease;
             cursor: pointer;
-            border-radius: 8px; /* Lekkie zaokrąglenie wewnątrz listy */
             margin: 5px 10px;
         }
 
         .section-item:hover {
-            background: #f0fdf4; /* Jasnozielony hover */
-            transform: translateX(5px); /* Delikatny efekt wysunięcia */
-            box-shadow: -5px 0 0 var(--primary-green); /* Zielony pasek z boku */
-        }
-        .section-item:last-child {
-            border-bottom: none;
+            background: #f0fdf4;
+            transform: translateX(5px);
+            box-shadow: -5px 0 0 var(--primary-green);
         }
 
         .role-badge {
@@ -174,16 +158,14 @@
             padding: 4px 10px;
             border-radius: 15px;
         }
-        .role-admin { background: #ffebeb; color: var(--red-header); }
+        .role-nauczyciel { background: #f0ebff; color: #6c5ce7; }
         .role-user { background: #e6ffe6; color: var(--primary-green); }
 
         .empty-state {
             padding: 20px;
             text-align: center;
             color: #888;
-            font-style: italic;
         }
-
     </style>
 </head>
 <body>
@@ -191,12 +173,9 @@
 <div class="header-bar">Pheme sekcje</div>
 
 <div class="layout-container">
-    
-    <div class="sidebar" id="duckSidebar">
-        </div>
+    <div class="sidebar" id="duckSidebar"></div>
 
     <div class="main-content" id="mainContent">
-        
         <div id="adminCreatePanel" class="action-panel admin-only">
             <div>
                 <strong>Panel Administratora</strong><br>
@@ -210,7 +189,7 @@
                 <strong>Dołącz do istniejącej sekcji</strong>
             </div>
             <div class="input-group">
-                <input type="text" id="joinSectionCode" placeholder="Podaj kod sekcji (np. 213767)">
+                <input type="text" id="joinSectionCode" placeholder="Podaj kod sekcji">
                 <button class="btn" onclick="dolaczDoSekcji()">Dodaj</button>
             </div>
         </div>
@@ -218,7 +197,6 @@
         <div class="sections-list" id="listaSekcji">
             <div class="empty-state">Ładowanie Twoich sekcji...</div>
         </div>
-
     </div>
 </div>
 
@@ -228,9 +206,39 @@
 
     if (!token) window.location.href = "index.html";
 
+    // --- 1. FUNKCJA GENERUJĄCA KACZKI ---
+    function generujKaczki() {
+        const sidebar = document.getElementById("duckSidebar");
+        const mainContent = document.getElementById("mainContent");
+        if (!sidebar || !mainContent) return;
+
+        sidebar.innerHTML = ""; // Czyścimy przed rysowaniem
+
+        // Obliczamy ile kaczek się zmieści (każda ma ok 220px wysokości z paddingiem)
+        const minHeight = Math.max(mainContent.offsetHeight, window.innerHeight - 150);
+        const duckHeight = 220; 
+        const iloscKaczek = Math.max(2, Math.ceil(minHeight / duckHeight));
+
+        const numeryKaczek = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 67];
+
+        for (let i = 0; i < iloscKaczek; i++) {
+            const n = numeryKaczek[Math.floor(Math.random() * numeryKaczek.length)];
+            // ŚCIEŻKA: Upewnij się, że folder kaczki jest w dobrym miejscu!
+            const duckHtml = `
+                <div class="duck-box">
+                    <a href="start.html">
+                        <img src="kaczki/proste/kaczka_${n}.png" alt="Kaczka" class="duck-img">
+                    </a>
+                </div>
+            `;
+            sidebar.insertAdjacentHTML('beforeend', duckHtml);
+        }
+    }
+
+    // --- 2. INICJALIZACJA DANYCH ---
     async function inicjalizujStrone() {
         try {
-            // 1. Sprawdzanie roli
+            // Profil (rola admina)
             const resProfil = await fetch(`${API_URL}/profil`, {
                 headers: { "Authorization": "Bearer " + token }
             });
@@ -241,7 +249,7 @@
                 }
             }
 
-            // 2. Pobieranie sekcji (ODBLOKOWANE I NAPRAWIONE)
+            // Pobieranie sekcji
             const resSekcje = await fetch(`${API_URL}/moje-sekcje`, {
                 headers: { "Authorization": "Bearer " + token }
             });
@@ -249,7 +257,10 @@
                 const sekcje = await resSekcje.json();
                 wypiszSekcje(sekcje);
             }
-            generujKaczki();
+
+            // WYWOŁANIE KACZEK po załadowaniu treści
+            setTimeout(generujKaczki, 100);
+
         } catch (e) {
             console.error("Błąd:", e);
         }
@@ -291,8 +302,9 @@
         if(res.ok) location.reload();
     }
 
-    // Twoja funkcja generujKaczki zostaje bez zmian...
+    // Uruchomienie przy starcie i przy zmianie rozmiaru okna
     window.onload = inicjalizujStrone;
+    window.onresize = generujKaczki;
 </script>
 
 </body>
