@@ -35,10 +35,9 @@
             width: 95%;
             max-width: 1000px;
             margin-top: 30px;
-            position: relative; /* Potrzebne do pozycjonowania plakietki */
+            position: relative;
         }
 
-        /* --- PLAKIETKA Z KODEM (TYLKO NAUCZYCIEL) --- */
         .section-badge {
             position: absolute;
             top: -10px;
@@ -51,16 +50,15 @@
             font-weight: bold;
             color: var(--dark-gray);
             font-size: 0.9rem;
-            display: none; /* Domyślnie ukryte */
+            display: none;
         }
 
         .section-badge span {
             color: var(--primary-green);
             margin-left: 5px;
-            user-select: all; /* Ułatwia kopiowanie kodu */
+            user-select: all;
         }
 
-        /* --- TABS --- */
         .tabs {
             display: flex;
             gap: 10px;
@@ -93,6 +91,21 @@
 
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+
+        /* Style dla notatek */
+        .note-item {
+            border-left: 4px solid var(--primary-green);
+            background: #f9f9f9;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 0 10px 10px 0;
+        }
+        .note-links a {
+            color: #007bff;
+            text-decoration: none;
+            margin-right: 15px;
+            font-weight: 500;
+        }
 
         .members-layout {
             display: grid;
@@ -145,8 +158,21 @@
 
     <div class="content-card">
         <div id="notatki" class="tab-content active">
-            <h2>Notatki sekcji</h2>
-            <p>Treść materiałów edukacyjnych...</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>Notatki sekcji</h2>
+                <button id="btn-pokaz-form-notatki" style="display:none; background: var(--primary-green); color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold;" onclick="document.getElementById('form-dodaj-notatke').style.display='block'">+ Dodaj lekcję</button>
+            </div>
+
+            <div id="form-dodaj-notatke" style="display:none; background: #eee; padding: 20px; border-radius: 15px; margin-bottom: 25px;">
+                <h3 style="margin-top:0">Nowa lekcja</h3>
+                <input type="text" id="note-lesson-name" placeholder="Nazwa lekcji" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box;">
+                <input type="text" id="note-link1" placeholder="Link do notatek 1" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box;">
+                <input type="text" id="note-link2" placeholder="Link do notatek 2 (opcjonalnie)" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box;">
+                <button onclick="dodajNotatke()" style="background: var(--primary-green); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">Zapisz</button>
+                <button onclick="document.getElementById('form-dodaj-notatke').style.display='none'" style="background: #999; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-left: 10px;">Anuluj</button>
+            </div>
+
+            <div id="lista-notatek">Ładowanie materiałów...</div>
         </div>
 
         <div id="feedback" class="tab-content">
@@ -196,18 +222,75 @@
             if (taSekcja) {
                 document.getElementById('section-title').innerText = taSekcja.name;
 
-                // Sprawdzamy czy użytkownik jest nauczycielem
                 if (taSekcja.rola === "nauczyciel") {
-                    // POKAŻ KOD SEKCJI
                     const badge = document.getElementById('section-code-badge');
                     document.getElementById('display-kod').innerText = kod;
                     badge.style.display = 'block';
 
+                    document.getElementById('btn-pokaz-form-notatki').style.display = 'block';
+
                     dodajPrzyciskAdmina();
                     pobierzCzlonkow(); 
                 }
+                pobierzNotatki();
             }
         } catch (e) { console.error(e); }
+    }
+
+    async function pobierzNotatki() {
+        try {
+            const res = await fetch(`${API_URL}/section-notes/${kod}`, {
+                headers: { "Authorization": "Bearer " + token }
+            });
+            const notes = await res.json();
+            const container = document.getElementById('lista-notatek');
+            
+            if (notes.length === 0) {
+                container.innerHTML = "<p>Brak dodanych notatek dla tej sekcji.</p>";
+                return;
+            }
+
+            container.innerHTML = notes.reverse().map(n => `
+                <div class="note-item">
+                    <div style="font-size: 0.75rem; color: #888; margin-bottom: 5px;">${n.date}</div>
+                    <strong style="font-size: 1.1rem; display: block; margin-bottom: 10px;">${n.lessonName}</strong>
+                    <div class="note-links">
+                        <a href="${n.link1}" target="_blank">🔗 Notatki 1</a>
+                        ${n.link2 ? `<a href="${n.link2}" target="_blank">🔗 Notatki 2</a>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        } catch (e) { console.error("Błąd pobierania notatek", e); }
+    }
+
+    async function dodajNotatke() {
+        const lessonName = document.getElementById('note-lesson-name').value;
+        const link1 = document.getElementById('note-link1').value;
+        const link2 = document.getElementById('note-link2').value;
+
+        if (!lessonName || !link1) return alert("Podaj nazwę lekcji i przynajmniej jeden link!");
+
+        try {
+            const res = await fetch(`${API_URL}/add-note`, {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token 
+                },
+                body: JSON.stringify({ code: kod, lessonName, link1, link2 })
+            });
+
+            if (res.ok) {
+                document.getElementById('form-dodaj-notatke').style.display = 'none';
+                document.getElementById('note-lesson-name').value = "";
+                document.getElementById('note-link1').value = "";
+                document.getElementById('note-link2').value = "";
+                pobierzNotatki();
+            } else {
+                const err = await res.json();
+                alert(err.message);
+            }
+        } catch (e) { alert("Błąd połączenia"); }
     }
 
     function dodajPrzyciskAdmina() {
@@ -252,10 +335,9 @@
                         buttonHtml = `
                             <button class="btn-small" onclick="awansujNaNaunczyciela('${m.username}')" 
                                     style="padding: 2px 8px; font-size: 0.7rem; background: #ff3b3b; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                                Daj Nauczyciela (Admin Only)
+                                Daj Nauczyciela
                             </button>`;
                     }
-
                     const row = `
                         <div class="user-row" style="display: flex; justify-content: space-between; align-items: center;">
                             <span>${doWyswietlenia}</span>
@@ -264,12 +346,11 @@
                     usersList.insertAdjacentHTML('beforeend', row);
                 }
             });
-        } catch (e) { console.error("Błąd pobierania listy osób", e); }
+        } catch (e) { console.error("Błąd listy osób", e); }
     }
 
     async function awansujNaNaunczyciela(targetUsername) {
         if (!confirm(`Czy na pewno chcesz nadać uprawnienia nauczyciela użytkownikowi ${targetUsername}?`)) return;
-
         try {
             const res = await fetch(`${API_URL}/promote-to-teacher`, {
                 method: "POST",
@@ -277,30 +358,18 @@
                     "Content-Type": "application/json",
                     "Authorization": "Bearer " + token 
                 },
-                body: JSON.stringify({ 
-                    code: kod, 
-                    targetUsername: targetUsername 
-                })
+                body: JSON.stringify({ code: kod, targetUsername: targetUsername })
             });
-
-            const data = await res.json();
-            
             if (res.ok) {
-                alert("Sukces: " + data.message);
+                alert("Sukces!");
                 pobierzCzlonkow(); 
-            } else {
-                alert("Błąd: " + data.message);
             }
-        } catch (e) {
-            console.error("Błąd sieci:", e);
-            alert("Nie udało się połączyć z serwerem.");
-        }
+        } catch (e) { alert("Błąd!"); }
     }
 
     function openTab(evt, tabName) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        
         document.getElementById(tabName).classList.add('active');
         evt.currentTarget.classList.add('active');
     }

@@ -242,6 +242,42 @@ app.post("/reset", auth, admin, (req, res) => {
     saveSections([]);
     res.send("Baza zresetowana");
 });
+// Endpoint do pobierania notatek danej sekcji
+app.get("/section-notes/:code", auth, (req, res) => {
+    const sections = loadSections();
+    const section = sections.find(s => s.code === req.params.code);
+    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+    
+    // Zwracamy notatki (jeśli nie ma żadnych, zwracamy pustą tablicę)
+    res.json(section.notes || []);
+});
 
+// Endpoint do dodawania notatki (tylko nauczyciel/admin)
+app.post("/add-note", auth, (req, res) => {
+    const { code, lessonName, link1, link2 } = req.body;
+    let sections = loadSections();
+    const section = sections.find(s => s.code === code);
+
+    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+
+    // Sprawdzenie uprawnień: czy użytkownik jest nauczycielem w TEJ sekcji
+    const member = section.members.find(m => m.username === req.user.username);
+    if (!member || (member.role !== "nauczyciel" && req.user.role !== "admin")) {
+        return res.status(403).json({ message: "Tylko nauczyciel może dodawać notatki" });
+    }
+
+    if (!section.notes) section.notes = [];
+    
+    section.notes.push({
+        id: Date.now(),
+        lessonName,
+        link1,
+        link2,
+        date: new Date().toISOString().split('T')[0]
+    });
+
+    saveSections(sections);
+    res.json({ message: "Notatka dodana!" });
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Serwer Pheme działa na porcie " + PORT));
