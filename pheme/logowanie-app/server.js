@@ -61,9 +61,6 @@ function auth(req, res, next) {
     }
 }
 
-// Naprawa błędu ReferenceError z logów Rendera:
-const authenticateToken = auth;
-
 function admin(req, res, next) {
     if (req.user.role !== "admin") return res.status(403).send("Brak dostępu");
     next();
@@ -411,8 +408,5 @@ app.post("/remove-from-section", auth, (req, res) => {
     res.json({ message: `Usunięto użytkownika ${targetUsername}.` });
 });
 
-// Konfiguracja portu dla Rendera
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Serwer działa na porcie ${PORT}`);
-});
+app.listen(PORT, () => console.log("Serwer działa na porcie " + PORT));
