@@ -167,7 +167,20 @@
             padding: 8px 0;
             border-bottom: 1px solid #eee;
         }
+        .q-new-indicator {
+    border-left: 6px solid #ff3b3b !important; /* Czerwony kolor dla nowych wiadomości */
+    background-color: #fff0f0 !important;   /* Delikatne czerwone tło */
+    order: -1; /* Wymusza wyświetlanie na samej górze w kontenerze flex */
+}
 
+.new-badge {
+    background: #ff3b3b;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-size: 0.7rem;
+    margin-left: 10px;
+}
         .back-link { margin-top: 20px; display: block; color: #888; text-decoration: none; text-align: center; }
     </style>
 </head>
@@ -388,69 +401,108 @@
     }
 
     async function przygotujPytania() {
-        const container = document.getElementById('pytania-container');
-        try {
-            const memRes = await fetch(`${API_URL}/section-members/${kod}`, { headers: { "Authorization": "Bearer " + token } });
-            const members = await memRes.json();
-            const teachers = members.filter(m => m.role === "nauczyciel");
-            const qRes = await fetch(`${API_URL}/section-questions/${kod}`, { headers: { "Authorization": "Bearer " + token } });
-            const questions = await qRes.json();
-            
-            // Górna sekcja - utworzenie nowego wątku
-            let html = `
-                <div style="background:#f0f0f0; padding:20px; border-radius:15px; margin-bottom:20px;">
-                    <h3 style="margin-top:0">Rozpocznij nowy wątek</h3>
-                    <div style="margin-bottom:10px;">
-                        ${teachers.map(t => `<label style="margin-right:15px;"><input type="checkbox" name="targetT" value="${t.username}"> ${t.name || t.username}</label>`).join('')}
-                    </div>
-                    <input type="text" id="q-subject" placeholder="Temat..." class="input-subject" style="margin-top:0">
-                    <textarea id="q-text" placeholder="Twoja pierwsza wiadomość..."></textarea>
-                    <button class="btn-send-fb" onclick="wyslijPytanie()">Wyślij nową wiadomość</button>
-                </div>
-                <div id="q-list">
-            `;
+    const container = document.getElementById('pytania-container');
+    try {
+        // 1. Pobieramy profil, żeby wiedzieć kim JESTEŚMY
+        const profRes = await fetch(`${API_URL}/profil`, { headers: { "Authorization": "Bearer " + token } });
+        const profil = await profRes.json();
+        const myUsername = profil.username;
 
-            // Renderowanie listy wątków
-            if (questions.length === 0) {
-                html += '<p>Brak konwersacji.</p>';
-            } else {
-                html += questions.reverse().map(q => {
-                    const questionId = q.id || q._id; // Pobieramy ID pytania z backendu
+        // 2. Pobieramy listę członków (dla listy nauczycieli przy nowym pytaniu)
+        const memRes = await fetch(`${API_URL}/section-members/${kod}`, { headers: { "Authorization": "Bearer " + token } });
+        const members = await memRes.json();
+        const teachers = members.filter(m => m.role === "nauczyciel");
+
+        // 3. Pobieramy pytania
+        const qRes = await fetch(`${API_URL}/section-questions/${kod}`, { headers: { "Authorization": "Bearer " + token } });
+        let questions = await qRes.json();
+
+        // 4. Logika "Nowości" (dla każdego użytkownika)
+        const storageKey = `seen_${myUsername}_${kod}`;
+        const seenData = JSON.parse(localStorage.getItem(storageKey) || "{}");
+
+        questions = questions.map(q => {
+            const currentTotal = 1 + (q.replies ? q.replies.length : 0);
+            const lastSeenCount = seenData[q.id] || 0;
+            
+            // Kto napisał ostatni w tym wątku?
+            const lastMsg = q.replies && q.replies.length > 0 
+                ? q.replies[q.replies.length - 1] 
+                : q;
+            
+            // WIADOMOŚĆ JEST NOWA, JEŚLI:
+            // - Liczba wiadomości się zwiększyła
+            // - I to NIE JA napisałem tę ostatnią wiadomość
+            const isNew = currentTotal > lastSeenCount && lastMsg.fromUsername !== myUsername;
+            
+            return { ...q, isNew, currentTotal };
+        });
+
+        // 5. SORTOWANIE: 
+        // Pierwszeństwo mają "isNew", potem sortujemy po dacie (najnowsze ID na górze)
+        questions.sort((a, b) => {
+            if (a.isNew && !b.isNew) return -1;
+            if (!a.isNew && b.isNew) return 1;
+            return b.id > a.id ? 1 : -1; 
+        });
+
+        // 6. RENDEROWANIE (Widok)
+        let html = `
+            <div style="background:#f0f0f0; padding:20px; border-radius:15px; margin-bottom:20px;">
+                <h3 style="margin-top:0">Rozpocznij nowy wątek</h3>
+                <div style="margin-bottom:10px;">
+                    ${teachers.map(t => `<label style="margin-right:15px;"><input type="checkbox" name="targetT" value="${t.username}"> ${t.name || t.username}</label>`).join('')}
+                </div>
+                <input type="text" id="q-subject" placeholder="Temat..." class="input-subject" style="margin-top:0">
+                <textarea id="q-text" placeholder="Twoja pierwsza wiadomość..."></textarea>
+                <button class="btn-send-fb" onclick="wyslijPytanie()">Wyślij wiadomość</button>
+            </div>
+            <div id="q-list" style="display: flex; flex-direction: column; gap: 15px;">
+        `;
+
+        if (questions.length === 0) {
+            html += '<p>Brak konwersacji.</p>';
+        } else {
+            html += questions.map(q => {
+                const qId = q.id;
+                const newClass = q.isNew ? 'q-new-indicator' : '';
+                const newBadge = q.isNew ? '<span class="new-badge">NOWA ODPOWIEDŹ!</span>' : '';
+
+                return `
+                <div class="feedback-item ${newClass}" 
+                     style="border-left: 4px solid purple; background:white; box-shadow:0 2px 5px rgba(0,0,0,0.05); cursor:pointer;" 
+                     onclick="oznaczJakoPrzeczytane('${qId}', ${q.currentTotal}, '${myUsername}')">
                     
-                    return `
-                    <div class="feedback-item" style="border-left: 4px solid purple; background:white; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom: 30px;">
-                        <div style="display:flex; justify-content:space-between; align-items:start">
-                            <strong>Temat: ${q.subject || 'Brak tematu'}</strong>
-                            <small style="color:#aaa">${q.date || ''}</small>
-                        </div>
-                        <small>Uczestnicy: <strong>${q.from}</strong> oraz ${q.to.join(', ')}</small>
-                        <p style="margin:15px 0 10px 0; white-space: pre-wrap; font-size: 1.05rem;">${q.text}</p>
-                        
-                        <div style="margin-top: 20px; padding-left: 15px; border-left: 2px solid #ddd;">
-                            ${(q.replies || []).map(r => `
-                                <div style="background: #fdfdfd; padding: 12px 15px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #eee;">
-                                    <div style="display:flex; justify-content:space-between;">
-                                        <small><strong>${r.from}</strong></small>
-                                        <small style="color:#888">${r.date || ''}</small>
-                                    </div>
-                                    <p style="margin: 5px 0 0 0; white-space: pre-wrap; font-size: 0.95rem; color: #444;">${r.text}</p>
-                                </div>
-                            `).join('')}
-                            
-                            <div style="margin-top: 15px; display: flex; gap: 10px; align-items: flex-start;">
-                                <textarea id="reply-text-${questionId}" placeholder="Napisz odpowiedź do tego wątku..." style="margin-top:0; min-height: 45px; padding: 10px; border-radius: 8px; border: 1px solid #ccc; flex-grow: 1; resize: vertical; font-family: inherit; box-sizing: border-box;"></textarea>
-                                <button onclick="wyslijOdpowiedz('${questionId}')" style="background: purple; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; white-space: nowrap; transition: 0.2s;">Odpowiedz</button>
-                            </div>
-                        </div>
+                    <div style="display:flex; justify-content:space-between; align-items:start">
+                        <strong>Temat: ${q.subject} ${newBadge}</strong>
+                        <small style="color:#aaa">${q.date}</small>
                     </div>
-                `}).join('');
-            }
-            
-            html += `</div>`;
-            container.innerHTML = html;
-            
-        } catch (e) { container.innerHTML = "Błąd modułu pytań."; }
-    }
+                    <small>Od: <strong>${q.from}</strong> do: ${q.to.join(', ')}</small>
+                    <p style="margin:10px 0; white-space: pre-wrap;">${q.text}</p>
+                    
+                    <div style="margin-top: 15px; padding-left: 10px; border-left: 2px solid #eee;">
+                        ${(q.replies || []).map(r => `
+                            <div style="background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 5px; font-size: 0.9rem;">
+                                <strong>${r.from}:</strong> ${r.text} <br>
+                                <small style="color:#999; font-size: 0.7rem;">${r.date}</small>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div style="margin-top: 10px; display: flex; gap: 5px;" onclick="event.stopPropagation()">
+                        <textarea id="reply-text-${qId}" placeholder="Napisz..." style="min-height:40px; margin:0; flex-grow:1;"></textarea>
+                        <button onclick="wyslijOdpowiedz('${qId}')" style="background:purple; color:white; border:none; padding: 5px 15px; border-radius:8px; cursor:pointer;">Wyślij</button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+        
+        html += `</div>`;
+        container.innerHTML = html;
+        
+    } catch (e) { console.error(e); }
+}
 
     async function wyslijPytanie() {
         const subject = document.getElementById('q-subject').value.trim();
@@ -541,7 +593,17 @@
             if (res.ok) { alert("✅ Awansowano!"); pobierzCzlonkow(); }
         } catch (e) { alert("Błąd połączenia."); }
     }
-
+    function oznaczJakoPrzeczytane(questionId, count, myUsername) {
+    const storageKey = `seen_${myUsername}_${kod}`;
+    const seenData = JSON.parse(localStorage.getItem(storageKey) || "{}");
+    
+    // Zapisujemy aktualny stan licznika wiadomości
+    seenData[questionId] = count;
+    localStorage.setItem(storageKey, JSON.stringify(seenData));
+    
+    // Odświeżamy kolory bez przeładowania całej strony (opcjonalnie)
+    przygotujPytania(); 
+}
     window.onload = inicjalizuj;
 </script>
 </body>
