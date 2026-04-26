@@ -196,11 +196,23 @@
             adminsList.innerHTML = "";
             usersList.innerHTML = "";
 
+            // Ta część idzie wewnątrz pętli members.forEach w widok-sekcji.html
             members.forEach(m => {
-                const row = `<div class="user-row">${m.username}</div>`;
+                const doWyswietlenia = m.name && m.name.trim() !== "" ? m.name : m.username;
+                
                 if (m.role === "nauczyciel" || m.role === "admin") {
+                    const row = `<div class="user-row">🎓 <strong>${doWyswietlenia}</strong></div>`;
                     adminsList.insertAdjacentHTML('beforeend', row);
                 } else {
+                    // Dodajemy przycisk awansu obok ucznia
+                    const row = `
+                        <div class="user-row" style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>👤 ${doWyswietlenia}</span>
+                            <button class="btn-small" onclick="awansujNaNaunczyciela('${m.username}')" 
+                                    style="padding: 2px 8px; font-size: 0.7rem; background: #333; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                                Daj Nauczyciela
+                            </button>
+                        </div>`;
                     usersList.insertAdjacentHTML('beforeend', row);
                 }
             });

@@ -219,6 +219,29 @@ app.get("/section-members/:code", auth, (req, res) => {
 
     res.json(membersWithNames);
 });
+app.post("/promote-to-teacher", auth, (req, res) => {
+    const { code, targetUsername } = req.body;
+    let sections = loadSections();
+    const section = sections.find(s => s.code === code);
+
+    if (!section) return res.status(404).json({ message: "Nie znaleziono sekcji" });
+
+    // Sprawdzamy, czy osoba wykonująca akcję jest nauczycielem w tej sekcji
+    const requester = section.members.find(m => m.username === req.user.username);
+    if (!requester || requester.role !== "nauczyciel") {
+        return res.status(403).json({ message: "Tylko nauczyciel może dodawać innych nauczycieli" });
+    }
+
+    // Znajdujemy osobę, którą chcemy awansować
+    const targetMember = section.members.find(m => m.username === targetUsername);
+    if (!targetMember) return res.status(404).json({ message: "Użytkownik nie należy do tej sekcji" });
+
+    // Zmieniamy rolę
+    targetMember.role = "nauczyciel";
+    
+    saveSections(sections);
+    res.json({ message: `Użytkownik ${targetUsername} został nauczycielem!` });
+});
 app.post("/reset", auth, admin, (req, res) => {
     let users = loadUsers();
     saveUsers(users.filter(u => u.role === "admin"));
