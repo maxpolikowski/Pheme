@@ -325,50 +325,86 @@
 
     // --- LOGIKA FEEDBACKU (Kafelki) ---
     async function przygotujFeedback(rola) {
-        const container = document.getElementById('feedback-container');
-        
+    const container = document.getElementById('feedback-container');
+    
+    try {
+        // Pobieramy notatki (lekcje)
+        const notesRes = await fetch(`${API_URL}/section-notes/${kod}`, {
+            headers: { "Authorization": "Bearer " + token }
+        });
+        const notes = await notesRes.json();
+
+        // Pobieramy feedbacki dla tej sekcji
+        const fbRes = await fetch(`${API_URL}/section-feedback/${kod}`, {
+            headers: { "Authorization": "Bearer " + token }
+        });
+        const allFeedbacks = await fbRes.json();
+
         if (rola === "nauczyciel") {
-            try {
-                const res = await fetch(`${API_URL}/section-feedback/${kod}`, {
-                    headers: { "Authorization": "Bearer " + token }
-                });
-                const feedbacks = await res.json();
-                
-                if (feedbacks.length === 0) {
-                    container.innerHTML = "<p>Brak nadesłanych opinii.</p>";
-                    return;
-                }
+            // WIDOK NAUCZYCIELA
+            if (allFeedbacks.length === 0) {
+                container.innerHTML = "<p>Brak nadesłanych opinii.</p>";
+                return;
+            }
+            container.innerHTML = "<h3>Otrzymany Feedback:</h3>" + allFeedbacks.reverse().map(f => `
+                <div class="feedback-item" style="background: white;">
+                    <small>Lekcja: <strong>${f.lessonName}</strong> | Od: ${f.author} ${f.edited ? '<b style="color:orange;">(EDYTYWANE)</b>' : ''}</small>
+                    <div style="margin-top:5px;">${f.message}</div>
+                </div>
+            `).join('');
 
-                container.innerHTML = "<h3>Otrzymany Feedback:</h3>" + feedbacks.reverse().map(f => `
-                    <div class="feedback-item" style="background: white;">
-                        <small>Lekcja: <strong>${f.lessonName}</strong> | Od: ${f.author || 'Uczeń'}</small>
-                        <div style="margin-top:5px;">${f.message}</div>
-                    </div>
-                `).join('');
-            } catch (e) { container.innerHTML = "Błąd ładowania."; }
         } else {
-            // Widok Ucznia - Kafelki lekcji do ocenienia
-            try {
-                const res = await fetch(`${API_URL}/section-notes/${kod}`, {
-                    headers: { "Authorization": "Bearer " + token }
-                });
-                const notes = await res.json();
+            // WIDOK UCZNIA
+            const mojProfil = await (await fetch(`${API_URL}/profil`, {headers:{"Authorization":"Bearer "+token}})).json();
 
-                if (notes.length === 0) {
-                    container.innerHTML = "<p>Brak lekcji do skomentowania.</p>";
-                    return;
-                }
+            container.innerHTML = notes.reverse().map((n, index) => {
+                // Szukamy czy ten uczeń już wysłał feedback do tej lekcji
+                const mojStaryFB = allFeedbacks.find(f => f.lessonName === n.lessonName && f.username === mojProfil.username);
+                const istniejacaTresc = mojStaryFB ? mojStaryFB.message : "";
+                const czyEdycja = mojStaryFB ? true : false;
 
-                container.innerHTML = notes.reverse().map((n, index) => `
+                return `
                     <div class="feedback-item">
                         <strong>${n.lessonName}</strong>
-                        <textarea id="fb-text-${index}" placeholder="Twoja opinia o tej lekcji..."></textarea>
-                        <button class="btn-send-fb" onclick="wyslijFeedbackZKafla('${n.lessonName}', ${index})">Wyślij opinię</button>
+                        <textarea id="fb-text-${index}" placeholder="Twoja opinia...">${istniejacaTresc}</textarea>
+                        <button class="btn-send-fb" id="btn-fb-${index}" 
+                            onclick="obsluzFeedback('${n.lessonName}', ${index}, ${czyEdycja})"
+                            style="background: ${czyEdycja ? '#ff9800' : '#007bff'}">
+                            ${czyEdycja ? 'Zapisz zmiany (Edytuj)' : 'Wyślij opinię'}
+                        </button>
+                        ${czyEdycja ? '<br><small style="color: #666;">Napisałeś już opinię. Możesz ją zmienić powyżej.</small>' : ''}
                     </div>
-                `).join('');
-            } catch (e) { container.innerHTML = "Błąd ładowania lekcji."; }
+                `;
+            }).join('');
         }
-    }
+    } catch (e) { container.innerHTML = "Błąd ładowania."; }
+}
+
+async function obsluzFeedback(lessonName, index, czyEdycja) {
+    const textarea = document.getElementById(`fb-text-${index}`);
+    const message = textarea.value.trim();
+    if (!message) return alert("Wpisz treść!");
+
+    const endpoint = czyEdycja ? "/edit-feedback" : "/add-feedback";
+    const bodyData = czyEdycja 
+        ? { code: kod, lessonName, newMessage: message } 
+        : { code: kod, lessonName, message };
+
+    try {
+        const res = await fetch(`${API_URL}${endpoint}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+            body: JSON.stringify(bodyData)
+        });
+
+        if (res.ok) {
+            alert(czyEdycja ? "✅ Zmiany zapisane!" : "✅ Opinia wysłana!");
+            const taSekcjaRes = await fetch(`${API_URL}/moje-sekcje`, {headers: {"Authorization": "Bearer "+token}});
+            const sekcje = await taSekcjaRes.json();
+            przygotujFeedback(sekcje.find(s => s.kod === kod).rola); 
+        }
+    } catch (e) { alert("Błąd połączenia."); }
+}
 
     async function wyslijFeedbackZKafla(lessonName, index) {
         const textarea = document.getElementById(`fb-text-${index}`);

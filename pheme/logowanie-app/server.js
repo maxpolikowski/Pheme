@@ -357,5 +357,25 @@ app.get("/section-feedback/:code", auth, (req, res) => {
 
     res.json(section.feedbacks || []);
 });
+// Edycja własnego feedbacku
+app.post("/edit-feedback", auth, (req, res) => {
+    const { code, lessonName, newMessage } = req.body;
+    let sections = loadSections();
+    const section = sections.find(s => s.code === code);
+
+    if (!section || !section.feedbacks) return res.status(404).json({ message: "Nie znaleziono" });
+
+    // Szukamy feedbacku tego konkretnego użytkownika do tej konkretnej lekcji
+    const feedback = section.feedbacks.find(f => f.username === req.user.username && f.lessonName === lessonName);
+
+    if (!feedback) return res.status(404).json({ message: "Nie znalazłeś swojego feedbacku do edycji" });
+
+    feedback.message = newMessage;
+    feedback.edited = true; // Flaga edycji
+    feedback.date = new Date().toLocaleString("pl-PL") + " (edytowano)";
+
+    saveSections(sections);
+    res.json({ message: "Zaktualizowano feedback!" });
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Serwer Pheme działa na porcie " + PORT));
