@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pheme - Twoje Pytania</title>
+    <style>
+        :root {
+            --primary-green: #00ce52;
+            --bg-gray: #f5f5f5;
+            --dark-gray: #333333;
+            --red-header: #ff3b3b;
+            --blue-feedback: #007bff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-gray);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header-bar {
+            width: 100%;
+            background: linear-gradient(to right, #ffffff, var(--red-header));
+            text-align: center;
+            padding: 15px 0;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1000px;
+            margin-top: 20px;
+        }
+
+        /* Menu nawigacyjne identyczne jak w start.html */
+        .nav-menu {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            background: var(--dark-gray);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .content-card {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+
+        /* Style dla wątków i powiadomień */
+        .thread-item {
+            border-left: 4px solid purple;
+            background: white;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 12px 12px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+
+        .q-new-indicator {
+            border-left: 8px solid #ff3b3b !important;
+            background-color: #fff5f5 !important;
+        }
+
+        .new-badge {
+            background: #ff3b3b;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-size: 0.75rem;
+            margin-left: 10px;
+        }
+
+        .section-tag {
+            background: #eee;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-family: inherit;
+            box-sizing: border-box;
+            margin-top: 10px;
+            resize: vertical;
+        }
+
+        .btn-reply {
+            background: purple;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .reply-box {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header-bar">Pheme - Twoje Pytania</div>
+
+<div class="container">
+    <div class="nav-menu">
+        <button class="nav-btn" onclick="location.href='start.html'">Start</button>
+        <button class="nav-btn" onclick="location.href='sekcje.html'">Sekcje</button>
+        <button class="nav-btn" onclick="location.href='notatki.html'">Notatki</button>
+        <button class="nav-btn" onclick="location.href='pytania.html'" style="background: var(--primary-green);">Pytania</button>
+        <button class="nav-btn" onclick="location.href='profil.html'">Profil</button>
+    </div>
+
+    <div class="content-card">
+        <h2>Ostatnie wątki</h2>
+        <p style="color: #888;">Tutaj znajdziesz pytania, które zadałeś we wszystkich swoich sekcjach.</p>
+        <hr>
+        <div id="pytania-global-list">Ładowanie Twoich konwersacji...</div>
+    </div>
+</div>
+
+<script>
+    const API_URL = "https://pheme-spmz.onrender.com";
+    const token = localStorage.getItem("token");
+
+    async function inicjalizuj() {
+        if (!token) window.location.href = "index.html";
+        
+        try {
+            // 1. Pobierz profil, by znać swój username
+            const profRes = await fetch(`${API_URL}/profil`, { headers: { "Authorization": "Bearer " + token } });
+            const profil = await profRes.json();
+            const myUsername = profil.username;
+
+            // 2. Pobierz listę sekcji
+            const sekcjeRes = await fetch(`${API_URL}/moje-sekcje`, { headers: { "Authorization": "Bearer " + token } });
+            const sekcje = await sekcjeRes.json();
+
+            let allMyQuestions = [];
+
+            // 3. Pobierz pytania z KAŻDEJ sekcji w tym samym czasie
+            const promises = sekcje.map(async (s) => {
+                const qRes = await fetch(`${API_URL}/section-questions/${s.kod}`, { headers: { "Authorization": "Bearer " + token } });
+                const questions = await qRes.json();
+                
+                // Dodajemy informację z jakiej sekcji jest pytanie i filtrujemy (tylko nasze)
+                return questions
+                    .filter(q => q.fromUsername === myUsername)
+                    .map(q => ({ ...q, sectionName: s.name, sectionKod: s.kod }));
+            });
+
+            const results = await Promise.all(promises);
+            allMyQuestions = results.flat();
+
+            // 4. Obsługa statusu "Nowe" i sortowanie
+            allMyQuestions = allMyQuestions.map(q => {
+                const storageKey = `seen_${myUsername}_${q.sectionKod}`;
+                const seenData = JSON.parse(localStorage.getItem(storageKey) || "{}");
+                
+                const currentTotal = 1 + (q.replies ? q.replies.length : 0);
+                const lastSeenCount = seenData[q.id] || 0;
+                
+                const lastMsg = q.replies && q.replies.length > 0 ? q.replies[q.replies.length - 1] : q;
+                const isNew = currentTotal > lastSeenCount && lastMsg.fromUsername !== myUsername;
+                
+                return { ...q, isNew, currentTotal };
+            });
+
+            // Sortuj: najpierw nowe, potem po dacie (najnowsze ID)
+            allMyQuestions.sort((a, b) => (b.isNew - a.isNew) || (b.id - a.id));
+
+            renderujPytania(allMyQuestions, myUsername);
+
+        } catch (e) {
+            console.error(e);
+            document.getElementById('pytania-global-list').innerHTML = "Błąd podczas ładowania pytań.";
+        }
+    }
+
+    function renderujPytania(questions, myUsername) {
+        const container = document.getElementById('pytania-global-list');
+        if (questions.length === 0) {
+            container.innerHTML = "<p>Nie zadałeś jeszcze żadnych pytań w swoich sekcjach.</p>";
+            return;
+        }
+
+        container.innerHTML = questions.map(q => {
+            const newClass = q.isNew ? 'q-new-indicator' : '';
+            const newBadge = q.isNew ? '<span class="new-badge">NOWA ODPOWIEDŹ</span>' : '';
+
+            return `
+                <div class="thread-item ${newClass}" onclick="oznaczPrzeczytane('${q.sectionKod}', '${q.id}', ${q.currentTotal}, '${myUsername}')">
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
+                        <span class="section-tag">${q.sectionName}</span>
+                        <small style="color:#aaa">${q.date}</small>
+                    </div>
+                    <h3 style="margin:10px 0 5px 0;">${q.subject} ${newBadge}</h3>
+                    <p style="margin:0 0 15px 0; color:#444;">${q.text}</p>
+                    
+                    <div style="padding-left:15px; border-left: 2px solid #ddd;">
+                        ${(q.replies || []).map(r => `
+                            <div class="reply-box">
+                                <strong>${r.from}:</strong> ${r.text}
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div style="margin-top:15px; display:flex; gap:10px;" onclick="event.stopPropagation()">
+                        <textarea id="reply-input-${q.id}" placeholder="Odpowiedz w tym wątku..."></textarea>
+                        <button class="btn-reply" onclick="wyslijOdpowiedz('${q.sectionKod}', '${q.id}')">Wyślij</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function wyslijOdpowiedz(kod, questionId) {
+        const text = document.getElementById(`reply-input-${questionId}`).value.trim();
+        if (!text) return alert("Wpisz treść!");
+
+        try {
+            const res = await fetch(`${API_URL}/reply-question`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+                body: JSON.stringify({ code: kod, questionId: questionId, text: text })
+            });
+            if (res.ok) {
+                alert("✅ Wysłano odpowiedź!");
+                inicjalizuj(); // Odśwież listę
+            }
+        } catch (e) { alert("Błąd wysyłania."); }
+    }
+
+    function oznaczPrzeczytane(kod, qId, count, user) {
+        const key = `seen_${user}_${kod}`;
+        const data = JSON.parse(localStorage.getItem(key) || "{}");
+        data[qId] = count;
+        localStorage.setItem(key, JSON.stringify(data));
+        // Odświeżamy kolory bez przeładowania strony
+        inicjalizuj();
+    }
+
+    window.onload = inicjalizuj;
+</script>
+
+</body>
+</html>
