@@ -156,21 +156,23 @@ app.get("/moje-sekcje", auth, (req, res) => {
     res.json(mySections);
 });
 
-app.get("/section-members/:code", auth, (req, res) => {
-    const sections = loadSections();
-    const section = sections.find(s => s.code === req.params.code);
-    if (!section) return res.status(404).json({ message: "Nie ma takiej sekcji" });
-    if (!section.members.some(m => m.username === req.user.username)) return res.status(403).json({ message: "Brak dostępu" });
-    const allUsers = loadUsers();
-    const membersWithNames = section.members.map(member => {
-        const userDetails = allUsers.find(u => u.username === member.username);
+app.get('/section-members/:code', authenticateToken, (req, res) => {
+    const { code } = req.params;
+    const section = sections.find(s => s.kod === code);
+
+    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+
+    // Mapujemy członków, aby zwrócić ich imiona i role
+    const memberDetails = section.members.map(m => {
+        const user = users.find(u => u.username === m.username);
         return {
-            username: member.username,
-            name: userDetails ? userDetails.name : "Brak imienia",
-            role: member.role
+            username: m.username,
+            name: user ? user.name : m.username,
+            role: m.role // 'uczeń' lub 'nauczyciel'
         };
     });
-    res.json(membersWithNames);
+
+    res.json(memberDetails);
 });
 
 // --- LEKCJE / NOTATKI ---
@@ -211,25 +213,28 @@ app.delete("/delete-note/:code/:noteId", auth, (req, res) => {
 
 // --- SYSTEM FEEDBACKU ---
 
-app.post("/add-feedback", auth, (req, res) => {
+app.post('/add-feedback', authenticateToken, (req, res) => {
     const { code, lessonName, message } = req.body;
-    let sections = loadSections();
-    const section = sections.find(s => s.code === code);
+    const section = sections.find(s => s.kod === code);
+    const user = users.find(u => u.username === req.user.username);
+
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
-    if (!section.feedbacks) section.feedbacks = [];
-    const users = loadUsers();
-    const currentUser = users.find(u => u.username === req.user.username);
-    const authorName = currentUser && currentUser.name ? currentUser.name : req.user.username;
-    section.feedbacks.push({
-        id: Date.now(),
+
+    // Tworzymy obiekt feedbacku
+    const newFeedback = {
+        id: Date.now().toString(),
         lessonName,
         message,
-        author: authorName,
         username: req.user.username,
-        date: new Date().toLocaleString("pl-PL")
-    });
-    saveSections(sections);
-    res.json({ message: "Wysłano!" });
+        author: user.name || req.user.username,
+        date: new Date().toLocaleString(),
+        edited: false
+    };
+
+    if (!section.feedbacks) section.feedbacks = [];
+    section.feedbacks.push(newFeedback);
+
+    res.json({ message: "Feedback dodany!" });
 });
 
 app.get("/section-feedback/:code", auth, (req, res) => {
@@ -248,19 +253,23 @@ app.get("/section-feedback/:code", auth, (req, res) => {
     }
 });
 
-app.post("/edit-feedback", auth, (req, res) => {
+app.post('/edit-feedback', authenticateToken, (req, res) => {
     const { code, lessonName, newMessage } = req.body;
-    let sections = loadSections();
-    const section = sections.find(s => s.code === code);
-    if (!section || !section.feedbacks) return res.status(404).json({ message: "Błąd" });
-    // Szukamy konkretnego wpisu tego usera do tej lekcji
-    const feedback = section.feedbacks.find(f => f.username === req.user.username && f.lessonName === lessonName);
-    if (!feedback) return res.status(404).json({ message: "Nie znaleziono Twojej opinii" });
-    feedback.message = newMessage;
-    feedback.edited = true;
-    feedback.date = new Date().toLocaleString("pl-PL") + " (edytowano)";
-    saveSections(sections);
-    res.json({ message: "Zaktualizowano!" });
+    const section = sections.find(s => s.kod === code);
+
+    if (!section || !section.feedbacks) return res.status(404).json({ message: "Błąd sekcji" });
+
+    // Szukamy feedbacku tego konkretnego użytkownika do tej konkretnej lekcji
+    const fb = section.feedbacks.find(f => f.lessonName === lessonName && f.username === req.user.username);
+
+    if (fb) {
+        fb.message = newMessage;
+        fb.edited = true;
+        fb.date = new Date().toLocaleString() + " (edytowano)";
+        return res.json({ message: "Zaktualizowano feedback" });
+    }
+
+    res.status(404).json({ message: "Nie znaleziono Twojej opinii do edycji" });
 });
 app.post("/promote-to-teacher", auth, (req, res) => {
     const { code, targetUsername } = req.body;

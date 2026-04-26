@@ -172,7 +172,53 @@
     background-color: #fff0f0 !important;   /* Delikatne czerwone tło */
     order: -1; /* Wymusza wyświetlanie na samej górze w kontenerze flex */
 }
-
+/* STYLE DLA NOWEGO WIDOKU FEEDBACKU */
+        .lesson-accordion {
+            background: white;
+            border-left: 5px solid var(--blue-feedback);
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        .lesson-accordion:hover {
+            background: #f0f8ff;
+        }
+        .lesson-content {
+            display: none; /* Domyślnie ukryte */
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border: 1px solid #eee;
+        }
+        .fb-new {
+            border-left: 6px solid #ff3b3b !important;
+            background-color: #fff0f0 !important;
+            order: -1; /* Wypycha element na samą górę we flexboxie */
+        }
+        .fb-badge-new {
+            background: #ff3b3b;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            margin-left: 10px;
+        }
+        .missing-students {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed #ccc;
+            font-size: 0.85rem;
+            color: #666;
+            order: 999; /* Zawsze na samym dole */
+        }
 .new-badge {
     background: #ff3b3b;
     color: white;
@@ -348,25 +394,109 @@
     async function przygotujFeedback(rola) {
         const container = document.getElementById('feedback-container');
         try {
+            // Pobieramy dane użytkownika, żeby wiedzieć kim jesteśmy
+            const profRes = await fetch(`${API_URL}/profil`, {headers:{"Authorization":"Bearer "+token}});
+            const profil = await profRes.json();
+            const myUsername = profil.username;
+
             const notesRes = await fetch(`${API_URL}/section-notes/${kod}`, { headers: { "Authorization": "Bearer " + token } });
             const notes = await notesRes.json();
+            
             const fbRes = await fetch(`${API_URL}/section-feedback/${kod}`, { headers: { "Authorization": "Bearer " + token } });
             const allFeedbacks = await fbRes.json();
 
+            // Potrzebujemy członków sekcji, żeby sprawdzić, kto nie napisał
+            const memRes = await fetch(`${API_URL}/section-members/${kod}`, { headers: { "Authorization": "Bearer " + token } });
+            const members = await memRes.json();
+            const students = members.filter(m => m.role !== "nauczyciel");
+
+            // WIDOK DLA NAUCZYCIELA
             if (rola === "nauczyciel") {
-                container.innerHTML = allFeedbacks.reverse().map(f => {
-                    const etykietaEdytowano = f.edited ? `<span style="color:var(--orange-edit); font-size:0.75rem; margin-left:10px;">(edytowano)</span>` : "";
+                if (!notes || notes.length === 0) {
+                    container.innerHTML = "<p>Brak lekcji do oceny.</p>";
+                    return;
+                }
+
+                // Odczytujemy z LocalStorage, ile opinii dla danej lekcji widzieliśmy wcześniej
+                const storageKey = `seen_fb_${myUsername}_${kod}`;
+                let seenData = JSON.parse(localStorage.getItem(storageKey) || "{}");
+
+                const reversedNotes = [...notes].reverse(); // Najnowsze lekcje na górze
+                let html = "";
+
+                reversedNotes.forEach((n, index) => {
+                    const lessonName = n.lessonName;
                     
-                    return `
-                        <div class="feedback-item" style="background:white; border-left: 4px solid var(--blue-feedback); box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-                            <small>Lekcja: <strong>${f.lessonName}</strong> | Od: ${f.author}${etykietaEdytowano}</small>
-                            <div style="margin-top:5px;">${f.message}</div>
-                        </div>
+                    // Opinie przypisane tylko do tej lekcji (odwrócone, by najnowsze opinie były z przodu)
+                    let lessonFbs = allFeedbacks.filter(f => f.lessonName === lessonName).reverse(); 
+
+                    const currentCount = lessonFbs.length;
+                    const seenCount = seenData[lessonName] || 0;
+                    
+                    // Sprawdzamy, które opinie są nowe
+                    lessonFbs = lessonFbs.map((f, i) => {
+                        const isNew = i < (currentCount - seenCount);
+                        return { ...f, isNew };
+                    });
+
+                    // Sortujemy opinie (nowe na samą górę)
+                    lessonFbs.sort((a, b) => {
+                        if (a.isNew && !b.isNew) return -1;
+                        if (!a.isNew && b.isNew) return 1;
+                        return 0; 
+                    });
+
+                    // Kto jeszcze nie napisał?
+                    // Zakładamy, że backend trzyma login autora w f.username lub f.author
+                    const whoWroteUsernames = lessonFbs.map(f => f.username || f.author); 
+                    const missing = students.filter(s => !whoWroteUsernames.includes(s.username));
+                    const missingNames = missing.map(m => m.name || m.username).join(", ") || "Wszyscy napisali! 🎉";
+
+                    // Liczenie całkowitej liczby nowych opinii
+                    const newTotal = currentCount > seenCount ? currentCount - seenCount : 0;
+                    const newBadgeHtml = newTotal > 0 ? `<span class="fb-badge-new">${newTotal} nowe</span>` : '';
+                    const safeId = "content-" + lessonName.replace(/[^a-zA-Z0-9]/g, '-');
+
+                    // Budowanie HTML z akordeonem
+                    html += `
+                    <div class="lesson-accordion" onclick="toggleFeedback('${safeId}', '${lessonName}', ${currentCount}, '${myUsername}')">
+                        <span>📖 ${lessonName}</span>
+                        <span>${newBadgeHtml} ▼</span>
+                    </div>
+                    
+                    <div class="lesson-content" id="${safeId}" style="display:none; flex-direction:column;">
                     `;
-                }).join('');
-            } else {
-                const profRes = await fetch(`${API_URL}/profil`, {headers:{"Authorization":"Bearer "+token}});
-                const profil = await profRes.json();
+
+                    if (lessonFbs.length === 0) {
+                        html += `<p style="color:#888;">Brak opinii dla tej lekcji.</p>`;
+                    } else {
+                        lessonFbs.forEach(f => {
+                            const etykietaEdytowano = f.edited ? `<span style="color:var(--orange-edit); font-size:0.75rem; margin-left:10px;">(edytowano)</span>` : "";
+                            const newClass = f.isNew ? "fb-new" : "";
+                            const newText = f.isNew ? `<span class="fb-badge-new">NOWA</span>` : "";
+
+                            html += `
+                            <div class="feedback-item ${newClass}" style="background:white; border-left: 4px solid var(--blue-feedback); box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom:10px; padding:10px;">
+                                <small>Od: <strong>${f.author || f.username}</strong> ${newText}${etykietaEdytowano}</small>
+                                <div style="margin-top:5px; white-space:pre-wrap;">${f.message}</div>
+                            </div>
+                            `;
+                        });
+                    }
+
+                    // Doklejamy listę brakujących na sam dół
+                    html += `
+                        <div class="missing-students">
+                            <strong>⏳ Nie napisali jeszcze:</strong> ${missingNames}
+                        </div>
+                    </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+            } 
+            // WIDOK DLA UCZNIA (zostaje taki jak był)
+            else {
                 container.innerHTML = [...notes].reverse().map((n, i) => {
                     const mojFB = allFeedbacks.find(f => f.lessonName === n.lessonName && f.username === profil.username);
                     const czyEdycja = !!mojFB;
@@ -645,7 +775,30 @@
     
     // Odświeżamy kolory bez przeładowania całej strony (opcjonalnie)
     przygotujPytania(); 
-}
+}function toggleFeedback(safeId, lessonName, currentCount, myUsername) {
+        const content = document.getElementById(safeId);
+        
+        // Rozwijanie
+        if (content.style.display === "none" || !content.style.display) {
+            content.style.display = "flex"; // używamy flex, żeby 'order' ładnie układał elementy
+            
+            // Oznaczamy jako "przeczytane" nadpisując lokalny schowek
+            const storageKey = `seen_fb_${myUsername}_${kod}`;
+            let seenData = JSON.parse(localStorage.getItem(storageKey) || "{}");
+            seenData[lessonName] = currentCount;
+            localStorage.setItem(storageKey, JSON.stringify(seenData));
+
+            // Usuwamy wizualny znaczek "X nowe" z przycisku po kliknięciu
+            const accordionHeader = content.previousElementSibling;
+            const badge = accordionHeader.querySelector('.fb-badge-new');
+            if (badge) badge.remove();
+
+        } 
+        // Zwijanie
+        else {
+            content.style.display = "none";
+        }
+    }
     window.onload = inicjalizuj;
 </script>
 </body>
