@@ -195,13 +195,14 @@
             <div id="form-dodaj-notatke" style="display:none; background: #eee; padding: 20px; border-radius: 15px; margin-bottom: 25px;">
                 <h3 style="margin-top:0">Nowa lekcja</h3>
                 <input type="text" id="note-lesson-name" placeholder="Nazwa lekcji" class="input-subject" style="margin-top:0">
-                <input type="url" id="note-link1" placeholder="Link 1" class="input-subject">
-                <input type="url" id="note-link2" placeholder="Opcjonalny Link 2" class="input-subject">
+                <input type="url" id="note-link1" placeholder="notatki 1" class="input-subject">
+                <input type="url" id="note-link2" placeholder="Opcjonalne notatki 2" class="input-subject">
                 <button onclick="dodajNotatke()" style="background: var(--primary-green); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-top:10px;">Zapisz lekcję</button>
                 <button onclick="document.getElementById('form-dodaj-notatke').style.display='none'" style="background: #999; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-left: 10px;">Anuluj</button>
             </div>
             <div id="lista-notatek">Ładowanie materiałów...</div>
         </div>
+
 
         <div id="feedback" class="tab-content">
             <h2>Feedback do lekcji</h2>
@@ -263,7 +264,7 @@
         if (tabName === 'lista-czlonkow') pobierzCzlonkow();
     }
 
-    async function pobierzNotatki() {
+   async function pobierzNotatki() {
         try {
             const res = await fetch(`${API_URL}/section-notes/${kod}`, { headers: { "Authorization": "Bearer " + token } });
             const notes = await res.json();
@@ -272,7 +273,12 @@
             const taSekcja = sekcje.find(s => s.kod === kod);
             const czyNauczyciel = taSekcja && taSekcja.rola === "nauczyciel";
             const container = document.getElementById('lista-notatek');
-            if (!notes || notes.length === 0) { container.innerHTML = "<p>Brak notatek.</p>"; return; }
+            
+            if (!notes || notes.length === 0) { 
+                container.innerHTML = "<p>Brak notatek.</p>"; 
+                return; 
+            }
+
             container.innerHTML = [...notes].reverse().map(n => `
                 <div class="note-item">
                     <div style="display:flex; justify-content:space-between; align-items:start;">
@@ -282,8 +288,8 @@
                         ${czyNauczyciel ? `<button onclick="usunNotatke('${n.id}')" style="background:none; border:none; color:red; cursor:pointer; font-size:0.8rem;">Usuń</button>` : ''}
                     </div>
                     <div class="note-links">
-                        <a href="${n.link1}" target="_blank">🔗 Link 1</a>
-                        ${n.link2 ? `<a href="${n.link2}" target="_blank">🔗 Link 2</a>` : ''}
+                        <a href="${n.link1}" target="_blank">🔗 ${n.link2 ? 'notatki 1' : 'notatki'}</a>
+                        ${n.link2 ? `<a href="${n.link2}" target="_blank">🔗 notatki 2</a>` : ''}
                     </div>
                 </div>
             `).join('');
@@ -513,7 +519,7 @@
             members.forEach(m => {
                 const name = m.name || m.username;
                 if (m.role === "nauczyciel") {
-                    aL.innerHTML += `<div class="user-row"><strong>⭐ ${name}</strong></div>`;
+                    aL.innerHTML += `<div class="user-row"><strong>${name}</strong></div>`;
                 } else {
                     const btnAwans = mozeNadawac 
                         ? `<button onclick="awansujNaNauczyciela('${m.username}')" style="margin-left:10px; font-size:0.7rem; cursor:pointer; background:var(--primary-green); color:white; border:none; border-radius:4px; padding:2px 5px;">Daj nauczyciela</button>` 
