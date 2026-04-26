@@ -279,5 +279,33 @@ app.post("/add-note", auth, (req, res) => {
     saveSections(sections);
     res.json({ message: "Notatka dodana!" });
 });
+// Endpoint do usuwania notatki (tylko nauczyciel tej sekcji lub admin)
+app.delete("/delete-note/:code/:noteId", auth, (req, res) => {
+    const { code, noteId } = req.params;
+    let sections = loadSections();
+    const section = sections.find(s => s.code === code);
+
+    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+
+    // Sprawdzenie uprawnień
+    const member = section.members.find(m => m.username === req.user.username);
+    const isTeacher = member && member.role === "nauczyciel";
+    const isAdmin = req.user.role === "admin";
+
+    if (!isTeacher && !isAdmin) {
+        return res.status(403).json({ message: "Brak uprawnień do usuwania" });
+    }
+
+    // Filtrowanie notatek (usuwamy tę o podanym ID)
+    const initialLength = section.notes ? section.notes.length : 0;
+    section.notes = (section.notes || []).filter(n => n.id.toString() !== noteId.toString());
+
+    if (section.notes.length === initialLength) {
+        return res.status(404).json({ message: "Nie znaleziono notatki o podanym ID" });
+    }
+
+    saveSections(sections);
+    res.json({ message: "Lekcja została usunięta" });
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Serwer Pheme działa na porcie " + PORT));

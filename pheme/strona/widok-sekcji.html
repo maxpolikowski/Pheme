@@ -250,10 +250,23 @@
                 return;
             }
 
+            // Sprawdzamy czy przycisk dodawania jest widoczny, aby wiedzieć czy pokazać przycisk usuwania
+            const czyNauczyciel = document.getElementById('btn-pokaz-form-notatki').style.display === 'block';
+
             container.innerHTML = notes.reverse().map(n => `
                 <div class="note-item">
-                    <div style="font-size: 0.75rem; color: #888; margin-bottom: 5px;">${n.date}</div>
-                    <strong style="font-size: 1.1rem; display: block; margin-bottom: 10px;">${n.lessonName}</strong>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="flex: 1;">
+                            <div style="font-size: 0.75rem; color: #888; margin-bottom: 5px;">${n.date}</div>
+                            <strong style="font-size: 1.1rem; display: block; margin-bottom: 10px;">${n.lessonName}</strong>
+                        </div>
+                        ${czyNauczyciel ? `
+                            <button onclick="usunNotatke('${n.id}')" 
+                                    style="background: #ffebeb; color: #ff3b3b; border: 1px solid #ff3b3b; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; font-weight: bold;">
+                                Usuń
+                            </button>
+                        ` : ''}
+                    </div>
                     <div class="note-links">
                         <a href="${n.link1}" target="_blank">🔗 Notatki 1</a>
                         ${n.link2 ? `<a href="${n.link2}" target="_blank">🔗 Notatki 2</a>` : ''}
@@ -261,6 +274,28 @@
                 </div>
             `).join('');
         } catch (e) { console.error("Błąd pobierania notatek", e); }
+    }
+
+    async function usunNotatke(noteId) {
+        if (!confirm("Czy na pewno chcesz usunąć tę lekcję?")) return;
+
+        try {
+            const res = await fetch(`${API_URL}/delete-note/${kod}/${noteId}`, {
+                method: "DELETE",
+                headers: { 
+                    "Authorization": "Bearer " + token 
+                }
+            });
+
+            if (res.ok) {
+                pobierzNotatki();
+            } else {
+                const err = await res.json();
+                alert("Błąd: " + err.message);
+            }
+        } catch (e) { 
+            alert("Błąd połączenia z serwerem");
+        }
     }
 
     async function dodajNotatke() {
