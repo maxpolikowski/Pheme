@@ -35,6 +35,29 @@
             width: 95%;
             max-width: 1000px;
             margin-top: 30px;
+            position: relative; /* Potrzebne do pozycjonowania plakietki */
+        }
+
+        /* --- PLAKIETKA Z KODEM (TYLKO NAUCZYCIEL) --- */
+        .section-badge {
+            position: absolute;
+            top: -10px;
+            right: 0;
+            background: white;
+            padding: 8px 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            border-right: 4px solid var(--primary-green);
+            font-weight: bold;
+            color: var(--dark-gray);
+            font-size: 0.9rem;
+            display: none; /* Domyślnie ukryte */
+        }
+
+        .section-badge span {
+            color: var(--primary-green);
+            margin-left: 5px;
+            user-select: all; /* Ułatwia kopiowanie kodu */
         }
 
         /* --- TABS --- */
@@ -58,8 +81,6 @@
         }
 
         .tab-btn.active { background: var(--primary-green); color: white; }
-        
-        /* Specjalny kolor dla przycisku admina */
         .tab-btn.admin-btn { border: 2px solid var(--dark-gray); }
 
         .content-card {
@@ -73,7 +94,6 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* --- LISTA CZŁONKÓW --- */
         .members-layout {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -97,8 +117,15 @@
         }
 
         .user-row:last-child { border-bottom: none; }
-
         .back-link { margin-top: 20px; display: block; color: #888; text-decoration: none; text-align: center; }
+
+        @media (max-width: 600px) {
+            .section-badge {
+                position: static;
+                text-align: center;
+                margin-bottom: 15px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -106,11 +133,15 @@
 <div class="header-bar">Pheme: <span id="section-title">Ładowanie...</span></div>
 
 <div class="container">
+    <div id="section-code-badge" class="section-badge">
+        Kod sekcji: <span id="display-kod"></span>
+    </div>
+
     <div class="tabs" id="tabs-container">
         <button class="tab-btn active" onclick="openTab(event, 'notatki')">Notatki</button>
         <button class="tab-btn" onclick="openTab(event, 'feedback')">Feedback</button>
         <button class="tab-btn" onclick="openTab(event, 'pytania')">Pytania</button>
-        </div>
+    </div>
 
     <div class="content-card">
         <div id="notatki" class="tab-content active">
@@ -167,6 +198,11 @@
 
                 // Sprawdzamy czy użytkownik jest nauczycielem
                 if (taSekcja.rola === "nauczyciel") {
+                    // POKAŻ KOD SEKCJI
+                    const badge = document.getElementById('section-code-badge');
+                    document.getElementById('display-kod').innerText = kod;
+                    badge.style.display = 'block';
+
                     dodajPrzyciskAdmina();
                     pobierzCzlonkow(); 
                 }
@@ -176,7 +212,6 @@
 
     function dodajPrzyciskAdmina() {
         const tabsContainer = document.getElementById('tabs-container');
-        // Zapobiegamy dublowaniu przycisku przy odświeżaniu skryptu
         if (document.querySelector('.admin-btn')) return;
 
         const btn = document.createElement('button');
@@ -187,55 +222,51 @@
     }
 
     async function pobierzCzlonkow() {
-    try {
-        // 1. Najpierw sprawdźmy, kim jest zalogowany użytkownik (czy to Główny Admin)
-        const profilRes = await fetch(`${API_URL}/profil`, {
-            headers: { "Authorization": "Bearer " + token }
-        });
-        const profil = await profilRes.json();
-        const czyJestemAdminemSystemu = (profil.role === "admin");
+        try {
+            const profilRes = await fetch(`${API_URL}/profil`, {
+                headers: { "Authorization": "Bearer " + token }
+            });
+            const profil = await profilRes.json();
+            const czyJestemAdminemSystemu = (profil.role === "admin");
 
-        // 2. Pobierz członków sekcji
-        const res = await fetch(`${API_URL}/section-members/${kod}`, {
-            headers: { "Authorization": "Bearer " + token }
-        });
-        const members = await res.json();
+            const res = await fetch(`${API_URL}/section-members/${kod}`, {
+                headers: { "Authorization": "Bearer " + token }
+            });
+            const members = await res.json();
 
-        const adminsList = document.getElementById('admins-list');
-        const usersList = document.getElementById('users-list');
+            const adminsList = document.getElementById('admins-list');
+            const usersList = document.getElementById('users-list');
 
-        adminsList.innerHTML = "";
-        usersList.innerHTML = "";
+            adminsList.innerHTML = "";
+            usersList.innerHTML = "";
 
-        members.forEach(m => {
-            const doWyswietlenia = m.name && m.name.trim() !== "" ? m.name : m.username;
-            
-            if (m.role === "nauczyciel" || m.role === "admin") {
-                const row = `<div class="user-row">🎓 <strong>${doWyswietlenia}</strong></div>`;
-                adminsList.insertAdjacentHTML('beforeend', row);
-            } else {
-                // PRZYCISK POKAZUJE SIĘ TYLKO ADMINOWI SYSTEMU
-                let buttonHtml = "";
-                if (czyJestemAdminemSystemu) {
-                    buttonHtml = `
-                        <button class="btn-small" onclick="awansujNaNaunczyciela('${m.username}')" 
-                                style="padding: 2px 8px; font-size: 0.7rem; background: #ff3b3b; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                            Daj Nauczyciela (Admin Only)
-                        </button>`;
+            members.forEach(m => {
+                const doWyswietlenia = m.name && m.name.trim() !== "" ? m.name : m.username;
+                
+                if (m.role === "nauczyciel" || m.role === "admin") {
+                    const row = `<div class="user-row"><strong>${doWyswietlenia}</strong></div>`;
+                    adminsList.insertAdjacentHTML('beforeend', row);
+                } else {
+                    let buttonHtml = "";
+                    if (czyJestemAdminemSystemu) {
+                        buttonHtml = `
+                            <button class="btn-small" onclick="awansujNaNaunczyciela('${m.username}')" 
+                                    style="padding: 2px 8px; font-size: 0.7rem; background: #ff3b3b; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                                Daj Nauczyciela (Admin Only)
+                            </button>`;
+                    }
+
+                    const row = `
+                        <div class="user-row" style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>${doWyswietlenia}</span>
+                            ${buttonHtml}
+                        </div>`;
+                    usersList.insertAdjacentHTML('beforeend', row);
                 }
+            });
+        } catch (e) { console.error("Błąd pobierania listy osób", e); }
+    }
 
-                const row = `
-                    <div class="user-row" style="display: flex; justify-content: space-between; align-items: center;">
-                        <span>👤 ${doWyswietlenia}</span>
-                        ${buttonHtml}
-                    </div>`;
-                usersList.insertAdjacentHTML('beforeend', row);
-            }
-        });
-    } catch (e) { console.error("Błąd pobierania listy osób", e); }
-}
-
-    // --- TA FUNKCJA BYŁA POTRZEBNA ---
     async function awansujNaNaunczyciela(targetUsername) {
         if (!confirm(`Czy na pewno chcesz nadać uprawnienia nauczyciela użytkownikowi ${targetUsername}?`)) return;
 
@@ -256,7 +287,7 @@
             
             if (res.ok) {
                 alert("Sukces: " + data.message);
-                pobierzCzlonkow(); // Odśwież listę bez przeładowania strony
+                pobierzCzlonkow(); 
             } else {
                 alert("Błąd: " + data.message);
             }
