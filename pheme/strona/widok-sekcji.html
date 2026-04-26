@@ -263,23 +263,84 @@
     }
 
     async function pobierzNotatki() {
-        try {
-            const res = await fetch(`${API_URL}/section-notes/${kod}`, { headers: { "Authorization": "Bearer " + token } });
-            const notes = await res.json();
-            const container = document.getElementById('lista-notatek');
-            if (!notes || notes.length === 0) { container.innerHTML = "<p>Brak notatek.</p>"; return; }
-            container.innerHTML = [...notes].reverse().map(n => `
-                <div class="note-item">
-                    <small>${n.date}</small><br><strong>${n.lessonName}</strong>
-                    <div class="note-links">
-                        <a href="${n.link1}" target="_blank">🔗 Link 1</a>
-                        ${n.link2 ? `<a href="${n.link2}" target="_blank">🔗 Link 2</a>` : ''}
-                    </div>
-                </div>
-            `).join('');
-        } catch (e) { console.error(e); }
-    }
+    try {
+        const res = await fetch(`${API_URL}/section-notes/${kod}`, { headers: { "Authorization": "Bearer " + token } });
+        const notes = await res.json();
+        
+        // Sprawdzenie roli, by wiedzieć czy pokazać przycisk usuwania
+        const sekcjeRes = await fetch(`${API_URL}/moje-sekcje`, { headers: { "Authorization": "Bearer " + token } });
+        const sekcje = await sekcjeRes.json();
+        const taSekcja = sekcje.find(s => s.kod === kod);
+        const czyNauczyciel = taSekcja && taSekcja.rola === "nauczyciel";
 
+        const container = document.getElementById('lista-notatek');
+        if (!notes || notes.length === 0) { container.innerHTML = "<p>Brak notatek.</p>"; return; }
+        
+        container.innerHTML = [...notes].reverse().map(n => `
+            <div class="note-item">
+                <div style="display:flex; justify-content:space-between; align-items:start;">
+                    <div>
+                        <small>${n.date}</small><br><strong>${n.lessonName}</strong>
+                    </div>
+                    ${czyNauczyciel ? `<button onclick="usunNotatke('${n.id}')" style="background:none; border:none; color:red; cursor:pointer; font-size:0.8rem;">Usuń</button>` : ''}
+                </div>
+                <div class="note-links">
+                    <a href="${n.link1}" target="_blank">🔗 Link 1</a>
+                    ${n.link2 ? `<a href="${n.link2}" target="_blank">🔗 Link 2</a>` : ''}
+                </div>
+            </div>
+        `).join('');
+    } catch (e) { console.error(e); }
+}
+    async function dodajNotatke() {
+    const lessonName = document.getElementById('note-lesson-name').value.trim();
+    const link1 = document.getElementById('note-link1').value.trim();
+    const link2 = document.getElementById('note-link2').value.trim();
+
+    if (!lessonName || !link1) return alert("Podaj nazwę lekcji i przynajmniej pierwszy link!");
+
+    try {
+        const res = await fetch(`${API_URL}/add-note`, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json", 
+                "Authorization": "Bearer " + token 
+            },
+            body: JSON.stringify({ code: kod, lessonName, link1, link2 })
+        });
+
+        if (res.ok) {
+            alert("✅ Lekcja dodana!");
+            document.getElementById('form-dodaj-notatke').style.display = 'none';
+            // Czyszczenie pól
+            document.getElementById('note-lesson-name').value = "";
+            document.getElementById('note-link1').value = "";
+            document.getElementById('note-link2').value = "";
+            pobierzNotatki(); // Odświeżenie listy
+        } else {
+            const err = await res.json();
+            alert("Błąd: " + err.message);
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Błąd połączenia z serwerem.");
+    }
+}
+
+async function usunNotatke(noteId) {
+    if (!confirm("Czy na pewno chcesz usunąć tę lekcję?")) return;
+
+    try {
+        const res = await fetch(`${API_URL}/delete-note/${kod}/${noteId}`, {
+            method: "DELETE",
+            headers: { "Authorization": "Bearer " + token }
+        });
+
+        if (res.ok) {
+            pobierzNotatki();
+        }
+    } catch (e) { console.error(e); }
+}
     async function przygotujFeedback(rola) {
         const container = document.getElementById('feedback-container');
         try {
