@@ -13,6 +13,8 @@
             --blue-feedback: #007bff;
             --orange-edit: #ff9800;
             --sigma-purple: #bbff00;
+            --sigma-gold: #ffd700;
+            --sigma-gold-dark: #b8860b;
         }
 
         body {
@@ -136,7 +138,6 @@
         }
 
         textarea { resize: vertical; }
-
         .note-links a {
             display: inline-block;
             background: white;
@@ -228,7 +229,41 @@
     font-size: 0.7rem;
     margin-left: 10px;
 }
+    /* Złoty przycisk w menu głównym */
+.sigma-panel-btn {
+    background: linear-gradient(45deg, #ffd700, #fff200) !important;
+    color: #000 !important;
+    border: 2px solid #000 !important;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.6) !important;
+    font-weight: 900 !important;
+    animation: pulse-gold 2s infinite;
+}
 
+@keyframes pulse-gold {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Kiedy aktywny jest tryb Sigmy, zmieniamy kolory interfejsu */
+.sigma-mode .tab-btn.active {
+    background: var(--sigma-gold) !important;
+    color: black !important;
+}
+
+/* Czarny przycisk "Start" (Zapisz lekcję) w trybie Sigmy */
+.sigma-mode #form-dodaj-notatke button:not([onclick*="none"]) {
+    background: #000 !important;
+    color: var(--sigma-gold) !important;
+    border: 2px solid var(--sigma-gold) !important;
+    text-transform: uppercase;
+}
+
+/* Złoty feedback dla Sigmy */
+.sigma-mode .btn-send-fb {
+    background: var(--sigma-gold) !important;
+    color: black !important;
+}
         .back-link { margin-top: 20px; display: block; color: #888; text-decoration: none; text-align: center; }
     </style>
 </head>
@@ -295,15 +330,22 @@
 
     let IS_SIGMA = false; // Nowa zmienna globalna
 
+
+
     async function inicjalizuj() {
         if (!token) window.location.href = "index.html";
         try {
-            // 1. Najpierw sprawdzamy profil pod kątem roli polska_sigma
+            // 1. Pobieramy profil, aby sprawdzić rolę globalną
             const profRes = await fetch(`${API_URL}/profil`, { headers: { "Authorization": "Bearer " + token } });
             const profil = await profRes.json();
-            IS_SIGMA = profil.role === "polska_sigma";
+            
+            // 2. Obsługa roli polska_sigma
+            if (profil.role === "polska_sigma") {
+                IS_SIGMA = true;
+                document.body.classList.add('sigma-mode');
+                dodajZlotyPrzycisk();
+            }
 
-            // 2. Pobieramy sekcje
             const res = await fetch(`${API_URL}/moje-sekcje`, { headers: { "Authorization": "Bearer " + token } });
             const sekcje = await res.json();
             const taSekcja = sekcje.find(s => s.kod === kod);
@@ -311,7 +353,7 @@
             if (taSekcja) {
                 document.getElementById('section-title').innerText = taSekcja.name;
                 
-                // MODYFIKACJA: Jeśli jest Sigmą, traktuj go jak nauczyciela
+                // 3. Uprawnienia: Nauczyciel LUB Sigma
                 const czyNauczyciel = taSekcja.rola === "nauczyciel" || IS_SIGMA;
                 
                 if (czyNauczyciel) {
@@ -320,11 +362,38 @@
                     document.getElementById('btn-pokaz-form-notatki').style.display = 'block';
                     dodajPrzyciskAdmina();
                 }
+                
                 pobierzNotatki();
-                // Przekazujemy "nauczyciel" jeśli sigma, żeby widział panel feedbacku nauczyciela
+                // Przekazujemy czyNauczyciel, aby Sigma widziała panel oceniania (Feedback)
                 przygotujFeedback(czyNauczyciel ? "nauczyciel" : "uczeń");
             }
         } catch (e) { console.error(e); }
+    }
+
+    function dodajZlotyPrzycisk() {
+        if (document.getElementById('sigma-gold-link')) return;
+        const tabs = document.getElementById('tabs-container');
+        const btn = document.createElement('button');
+        btn.id = "sigma-gold-link";
+        btn.className = 'tab-btn sigma-panel-btn';
+        btn.innerHTML = '✨ PANEL SIGMY';
+        btn.onclick = () => {
+            // Przewiń do góry i pokaż komunikat
+            window.scrollTo({top: 0, behavior: 'smooth'});
+            alert("Witaj w Panelu Sigmy. Wszystkie przyciski akcji są teraz złote, a przycisk start czarny.");
+        };
+        tabs.prepend(btn); 
+    }
+
+    function dodajZlotyPrzycisk() {
+        if (document.getElementById('sigma-gold-link')) return;
+        const tabs = document.getElementById('tabs-container');
+        const btn = document.createElement('button');
+        btn.id = "sigma-gold-link";
+        btn.className = 'tab-btn sigma-panel-btn';
+        btn.innerHTML = '✨ PANEL SIGMY';
+        btn.onclick = () => alert("Tryb Sigmy Aktywny: Masz dostęp do wszystkich ukrytych funkcji.");
+        tabs.prepend(btn); // Dodaje na początku listy przycisków
     }
 
     function openTab(evt, tabName) {

@@ -125,11 +125,14 @@ app.post("/login", loginLimiter, async (req, res) => {
     res.json({ token });
 });
 
-app.get("/profil", auth, (req, res) => {
-    const users = loadUsers();
-    const user = users.find(u => u.username === req.user.username);
-    if (!user) return res.status(404).send("User not found");
-    res.json({ username: user.username, name: user.name || "", role: user.role });
+// Przykład poprawnego endpointu w server.js
+app.get('/profil', authenticateToken, async (req, res) => {
+    const user = await User.findById(req.user.id);
+    res.json({
+        username: user.username,
+        role: user.role, // Tu musi być "polska_sigma" dla wybranych osób
+        name: user.name
+    });
 });
 
 app.post("/update-profile", auth, async (req, res) => {
