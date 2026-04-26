@@ -309,16 +309,21 @@ app.post("/ask-question", auth, (req, res) => {
     const users = loadUsers();
     const me = users.find(u => u.username === req.user.username);
 
+    // ... początek endpointu bez zmian ...
     section.questions.push({
-        id: Date.now(),
+        id: Date.now().toString(), // Zamieniamy na string dla pewności
         from: me.name || me.username,
         fromUsername: me.username,
-        subject: subject || "Brak tematu", // Zapisujemy temat w bazie
+        subject: subject || "Brak tematu",
         text: question,
         to: recipients, 
         date: new Date().toLocaleString("pl-PL"),
-        answers: [] 
+        replies: [] // Zmienione z 'answers' na 'replies'
     });
+
+    saveSections(sections);
+    res.json({ message: "Pytanie wysłane!" });
+});
 
     saveSections(sections);
     res.json({ message: "Pytanie wysłane!" });
@@ -339,6 +344,35 @@ app.get("/section-questions/:code", auth, (req, res) => {
     );
 
     res.json(filtered);
+});
+// --- ODPOWIEDŹ W WĄTKU ---
+app.post("/reply-question", auth, (req, res) => {
+    const { code, questionId, text } = req.body;
+    let sections = loadSections();
+    const section = sections.find(s => s.code === code);
+
+    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+
+    // Szukamy konkretnego pytania (wątku)
+    const question = (section.questions || []).find(q => q.id === questionId || q.id.toString() === questionId);
+    if (!question) return res.status(404).json({ message: "Nie znaleziono wątku" });
+
+    const users = loadUsers();
+    const me = users.find(u => u.username === req.user.username);
+
+    // Upewniamy się, że tablica replies istnieje
+    if (!question.replies) question.replies = [];
+
+    // Dodajemy nową odpowiedź
+    question.replies.push({
+        from: me.name || me.username,
+        fromUsername: me.username,
+        text: text,
+        date: new Date().toLocaleString("pl-PL")
+    });
+
+    saveSections(sections);
+    res.json({ message: "Dodano odpowiedź!" });
 });
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Serwer działa na porcie " + PORT));

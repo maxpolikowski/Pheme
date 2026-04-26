@@ -336,7 +336,6 @@
 
             if (rola === "nauczyciel") {
                 container.innerHTML = allFeedbacks.reverse().map(f => {
-                    // Sprawdzamy czy dany feedback ma flagę 'edited' lub czy wiadomość różni się od oryginalnej (zależy od Twojego API)
                     const etykietaEdytowano = f.edited ? `<span style="color:var(--orange-edit); font-size:0.75rem; margin-left:10px;">(edytowano)</span>` : "";
                     
                     return `
@@ -379,7 +378,6 @@
             body: JSON.stringify({ code: kod, lessonName, message: msg, newMessage: msg })
         });
         alert("✅ Zapisano!");
-        // Ponowne pobranie danych aby nauczyciel widział zmianę
         inicjalizuj();
     }
 
@@ -391,29 +389,60 @@
             const teachers = members.filter(m => m.role === "nauczyciel");
             const qRes = await fetch(`${API_URL}/section-questions/${kod}`, { headers: { "Authorization": "Bearer " + token } });
             const questions = await qRes.json();
-            container.innerHTML = `
+            
+            // Górna sekcja - utworzenie nowego wątku
+            let html = `
                 <div style="background:#f0f0f0; padding:20px; border-radius:15px; margin-bottom:20px;">
-                    <h3 style="margin-top:0">Zadaj pytanie nauczycielowi</h3>
+                    <h3 style="margin-top:0">Rozpocznij nowy wątek</h3>
                     <div style="margin-bottom:10px;">
                         ${teachers.map(t => `<label style="margin-right:15px;"><input type="checkbox" name="targetT" value="${t.username}"> ${t.name || t.username}</label>`).join('')}
                     </div>
-                    <input type="text" id="q-subject" placeholder="Temat pytania..." class="input-subject" style="margin-top:0">
-                    <textarea id="q-text" placeholder="Treść Twojego pytania..."></textarea>
-                    <button class="btn-send-fb" onclick="wyslijPytanie()">Wyślij pytanie</button>
+                    <input type="text" id="q-subject" placeholder="Temat..." class="input-subject" style="margin-top:0">
+                    <textarea id="q-text" placeholder="Twoja pierwsza wiadomość..."></textarea>
+                    <button class="btn-send-fb" onclick="wyslijPytanie()">Wyślij nową wiadomość</button>
                 </div>
                 <div id="q-list">
-                    ${questions.length === 0 ? '<p>Brak pytań.</p>' : questions.reverse().map(q => `
-                        <div class="feedback-item" style="border-left: 4px solid purple; background:white; box-shadow:0 2px 5px rgba(0,0,0,0.05)">
-                            <div style="display:flex; justify-content:space-between; align-items:start">
-                                <strong>Temat: ${q.subject || 'Brak tematu'}</strong>
-                                <small style="color:#aaa">${q.date || ''}</small>
-                            </div>
-                            <small>Od: <strong>${q.from}</strong> | Do: ${q.to.join(', ')}</small>
-                            <p style="margin:10px 0; white-space: pre-wrap;">${q.text}</p>
-                        </div>
-                    `).join('')}
-                </div>
             `;
+
+            // Renderowanie listy wątków
+            if (questions.length === 0) {
+                html += '<p>Brak konwersacji.</p>';
+            } else {
+                html += questions.reverse().map(q => {
+                    const questionId = q.id || q._id; // Pobieramy ID pytania z backendu
+                    
+                    return `
+                    <div class="feedback-item" style="border-left: 4px solid purple; background:white; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom: 30px;">
+                        <div style="display:flex; justify-content:space-between; align-items:start">
+                            <strong>Temat: ${q.subject || 'Brak tematu'}</strong>
+                            <small style="color:#aaa">${q.date || ''}</small>
+                        </div>
+                        <small>Uczestnicy: <strong>${q.from}</strong> oraz ${q.to.join(', ')}</small>
+                        <p style="margin:15px 0 10px 0; white-space: pre-wrap; font-size: 1.05rem;">${q.text}</p>
+                        
+                        <div style="margin-top: 20px; padding-left: 15px; border-left: 2px solid #ddd;">
+                            ${(q.replies || []).map(r => `
+                                <div style="background: #fdfdfd; padding: 12px 15px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #eee;">
+                                    <div style="display:flex; justify-content:space-between;">
+                                        <small><strong>${r.from}</strong></small>
+                                        <small style="color:#888">${r.date || ''}</small>
+                                    </div>
+                                    <p style="margin: 5px 0 0 0; white-space: pre-wrap; font-size: 0.95rem; color: #444;">${r.text}</p>
+                                </div>
+                            `).join('')}
+                            
+                            <div style="margin-top: 15px; display: flex; gap: 10px; align-items: flex-start;">
+                                <textarea id="reply-text-${questionId}" placeholder="Napisz odpowiedź do tego wątku..." style="margin-top:0; min-height: 45px; padding: 10px; border-radius: 8px; border: 1px solid #ccc; flex-grow: 1; resize: vertical; font-family: inherit; box-sizing: border-box;"></textarea>
+                                <button onclick="wyslijOdpowiedz('${questionId}')" style="background: purple; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; white-space: nowrap; transition: 0.2s;">Odpowiedz</button>
+                            </div>
+                        </div>
+                    </div>
+                `}).join('');
+            }
+            
+            html += `</div>`;
+            container.innerHTML = html;
+            
         } catch (e) { container.innerHTML = "Błąd modułu pytań."; }
     }
 
@@ -422,12 +451,43 @@
         const text = document.getElementById('q-text').value.trim();
         const recipients = Array.from(document.querySelectorAll('input[name="targetT"]:checked')).map(cb => cb.value);
         if(!subject || !text || recipients.length === 0) return alert("Uzupełnij temat, treść i wybierz adresata!");
-        const res = await fetch(`${API_URL}/ask-question`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-            body: JSON.stringify({ code: kod, subject: subject, question: text, recipients })
-        });
-        if(res.ok) { alert("✅ Pytanie wysłane!"); przygotujPytania(); }
+        
+        try {
+            const res = await fetch(`${API_URL}/ask-question`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+                body: JSON.stringify({ code: kod, subject: subject, question: text, recipients })
+            });
+            if(res.ok) { alert("✅ Nowy wątek rozpoczęty!"); przygotujPytania(); }
+        } catch (e) { alert("Błąd wysyłania wiadomości."); }
+    }
+
+    // Nowa funkcja do obsługi wysyłania odpowiedzi w wątku
+    async function wyslijOdpowiedz(questionId) {
+        if (!questionId || questionId === 'undefined') {
+            return alert("Błąd: Pytanie nie posiada ID w bazie danych.");
+        }
+        
+        const replyText = document.getElementById(`reply-text-${questionId}`).value.trim();
+        if (!replyText) return alert("Wpisz treść odpowiedzi!");
+
+        try {
+            // TUTAJ ZAKŁADAMY ISTNIENIE ENDPOINTU /reply-question PO STRONIE BACKENDU
+            const res = await fetch(`${API_URL}/reply-question`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+                body: JSON.stringify({ code: kod, questionId: questionId, text: replyText })
+            });
+            
+            if (res.ok) {
+                document.getElementById(`reply-text-${questionId}`).value = "";
+                przygotujPytania(); // Odświeżamy widok, by pokazać nową odpowiedź
+            } else {
+                alert("Błąd serwera podczas zapisywania odpowiedzi.");
+            }
+        } catch (e) {
+            alert("Błąd połączenia z serwerem.");
+        }
     }
 
     function dodajPrzyciskAdmina() {
@@ -453,10 +513,10 @@
             members.forEach(m => {
                 const name = m.name || m.username;
                 if (m.role === "nauczyciel") {
-                    aL.innerHTML += `<div class="user-row"><strong>${name}</strong></div>`;
+                    aL.innerHTML += `<div class="user-row"><strong>⭐ ${name}</strong></div>`;
                 } else {
                     const btnAwans = mozeNadawac 
-                        ? `<button onclick="awansujNaNauczyciela('${m.username}')" style="margin-left:10px; font-size:0.7rem; cursor:pointer; background:red; color:white; border:none; border-radius:4px; padding:2px 5px;">Daj nauczyciela</button>` 
+                        ? `<button onclick="awansujNaNauczyciela('${m.username}')" style="margin-left:10px; font-size:0.7rem; cursor:pointer; background:var(--primary-green); color:white; border:none; border-radius:4px; padding:2px 5px;">Daj nauczyciela</button>` 
                         : "";
                     uL.innerHTML += `<div class="user-row">${name}${btnAwans}</div>`;
                 }
