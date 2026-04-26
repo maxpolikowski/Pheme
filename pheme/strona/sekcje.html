@@ -226,137 +226,73 @@
     const API_URL = "https://pheme-spmz.onrender.com";
     const token = localStorage.getItem("token");
 
-    if (!token) {
-        window.location.href = "index.html";
-    }
+    if (!token) window.location.href = "index.html";
 
-    // --- 1. DYNAMICZNE WYPEŁNIANIE KACZKAMI ---
-    function generujKaczki() {
-        const sidebar = document.getElementById("duckSidebar");
-        const mainContent = document.getElementById("mainContent");
-        
-        sidebar.innerHTML = "";
-
-        const minHeight = Math.max(mainContent.offsetHeight, window.innerHeight - 150);
-        const duckHeight = 220; 
-        const iloscKaczek = Math.max(2, Math.ceil(minHeight / duckHeight));
-
-        const numery = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 67];
-
-        for (let i = 0; i < iloscKaczek; i++) {
-            const n = numery[Math.floor(Math.random() * numery.length)];
-            const duckHtml = `
-                <div class="duck-box">
-                    <a href="start.html">
-                        <img src="../../kaczki/proste/kaczka_${n}.png" alt="Kaczka" class="duck-img">
-                    </a>
-                </div>
-            `;
-            sidebar.insertAdjacentHTML('beforeend', duckHtml);
-        }
-    }
-
-    // --- 2. POBIERANIE DANYCH PROFILU I SEKCJI ---
     async function inicjalizujStrone() {
         try {
-            // Sprawdzenie roli
+            // 1. Sprawdzanie roli
             const resProfil = await fetch(`${API_URL}/profil`, {
                 headers: { "Authorization": "Bearer " + token }
             });
-            
             if (resProfil.ok) {
                 const data = await resProfil.json();
                 if (data.role === "admin") {
-                    document.getElementById("adminCreatePanel").classList.add("admin-only");
                     document.getElementById("adminCreatePanel").style.display = "flex";
                 }
-            } else {
-                window.location.href = "index.html";
-                return;
             }
 
-            // POBIERANIE PRAWDZIWYCH SEKCJI
-            let sekcje = [];
-            
-            // TODO: Zdejmij komentarze poniżej, gdy będziesz miał endpoint /moje-sekcje w pliku server.js
-            /*
-            try {
-                const resSekcje = await fetch(`${API_URL}/moje-sekcje`, {
-                    headers: { "Authorization": "Bearer " + token }
-                });
-                if(resSekcje.ok) {
-                    sekcje = await resSekcje.json();
-                }
-            } catch (e) {
-                console.log("Błąd pobierania sekcji", e);
+            // 2. Pobieranie sekcji (ODBLOKOWANE I NAPRAWIONE)
+            const resSekcje = await fetch(`${API_URL}/moje-sekcje`, {
+                headers: { "Authorization": "Bearer " + token }
+            });
+            if (resSekcje.ok) {
+                const sekcje = await resSekcje.json();
+                wypiszSekcje(sekcje);
             }
-            */
-
-            // Wypisz puste dane lub te pobrane z serwera
-            wypiszSekcje(sekcje);
-
-            setTimeout(generujKaczki, 100);
-
+            generujKaczki();
         } catch (e) {
-            console.error("Błąd podczas ładowania:", e);
+            console.error("Błąd:", e);
         }
     }
 
-    // --- 3. RYSOWANIE SEKCJI ---
-        function wypiszSekcje(sekcje) {
-    const lista = document.getElementById("listaSekcji");
-    lista.innerHTML = "";
-
-    if (!sekcje || sekcje.length === 0) {
-        lista.innerHTML = `<div class="empty-state">Nie należysz do żadnej sekcji.</div>`;
-        return;
-    }
-
-    sekcje.forEach(sekcja => {
-        // Tworzymy nazwę pliku tak samo jak na serwerze (małe litery, podkreślniki zamiast spacji)
-        const nazwaPliku = sekcja.name.replace(/\s+/g, '_').toLowerCase() + ".html";
-        
-        let klasaRoli = sekcja.rola === "nauczyciel" ? "role-nauczyciel" : "role-user";
-        
-        const html = `
-            <div class="section-item" onclick="window.location.href='${nazwaPliku}'">
-                <span>${sekcja.name}</span>
-                <span class="role-badge ${klasaRoli}">${sekcja.rola}</span>
-            </div>
-        `;
-        lista.insertAdjacentHTML('beforeend', html);
-    });
-}
-
-    // Funkcja, która odpala się po kliknięciu w sekcję
-    function przejdzDoSekcji(kodSekcji) {
-        console.log("Wchodzę do sekcji:", kodSekcji);
-        // Tutaj możesz przekierować na stronę z zadaniami danej sekcji
-        // window.location.href = `widok_sekcji.html?kod=${kodSekcji}`;
-        alert("Wchodzisz do sekcji: " + kodSekcji + "\n(Strona z zawartością sekcji jest w budowie)");
-    }
-
-    // --- FUNKCJA PRZEJŚCIA PO KLIKNIĘCIU W SEKCJĘ ---
-    function przejdzDoSekcji(id) {
-        // Docelowo: window.location.href = `widok-sekcji.html?id=${id}`;
-        alert(`Przenoszenie do zawartości sekcji o ID: ${id} (Strona w przygotowaniu)`);
-    }
-
-    // --- 4. FUNKCJA DOŁĄCZANIA ---
-    function dolaczDoSekcji() {
-        const kod = document.getElementById("joinSectionCode").value.trim();
-        if(!kod) {
-            alert("Proszę wpisać kod sekcji!");
+    function wypiszSekcje(sekcje) {
+        const lista = document.getElementById("listaSekcji");
+        lista.innerHTML = "";
+        if (!sekcje || sekcje.length === 0) {
+            lista.innerHTML = `<div class="empty-state">Nie należysz do żadnej sekcji.</div>`;
             return;
         }
 
-        alert(`Trwa dołączanie do sekcji o kodzie: ${kod}\n(Wymaga aktualizacji w pliku server.js)`);
-        document.getElementById("joinSectionCode").value = "";
+        sekcje.forEach(sekcja => {
+            let klasaRoli = sekcja.rola === "nauczyciel" ? "role-nauczyciel" : "role-user";
+            const html = `
+                <div class="section-item" onclick="window.location.href='widok-sekcji.html?kod=${sekcja.kod}'">
+                    <span>${sekcja.name}</span>
+                    <span class="role-badge ${klasaRoli}">${sekcja.rola}</span>
+                </div>`;
+            lista.insertAdjacentHTML('beforeend', html);
+        });
     }
 
-    window.onload = inicjalizujStrone;
-    window.onresize = generujKaczki;
+    async function dolaczDoSekcji() {
+        const kod = document.getElementById("joinSectionCode").value.trim();
+        if(!kod) return alert("Wpisz kod!");
 
+        const res = await fetch(`${API_URL}/join-section`, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token 
+            },
+            body: JSON.stringify({ code: kod })
+        });
+        const data = await res.json();
+        alert(data.message);
+        if(res.ok) location.reload();
+    }
+
+    // Twoja funkcja generujKaczki zostaje bez zmian...
+    window.onload = inicjalizujStrone;
 </script>
 
 </body>

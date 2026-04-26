@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Pheme - Panel Sekcji</title>
+    <style>
+        body { font-family: sans-serif; background: #f5f5f5; text-align: center; padding: 50px; }
+        .card { background: white; padding: 30px; border-radius: 15px; display: inline-block; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h1 { color: #00ce52; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1 id="secName">Ładowanie...</h1>
+        <p>Kod sekcji: <strong id="secCode">...</strong></p>
+        <hr>
+        <p>Tu będą zadania i materiały dla tej klasy.</p>
+        <a href="sekcje.html">← Wróć do listy</a>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const kod = params.get('kod');
+        document.getElementById('secCode').innerText = kod;
+        
+        // Tutaj w przyszłości dodasz fetch, który pobierze nazwę sekcji i zadania
+        document.getElementById('secName').innerText = "Twoja Sekcja";
+    </script>
+</body>
+</html>

@@ -153,7 +153,6 @@ app.post("/create-section", auth, admin, (req, res) => {
         return res.status(400).json({ message: "Sekcja o tym kodzie już istnieje" });
     }
 
-    // Dodanie admina jako nauczyciela
     const newSection = {
         name,
         code,
@@ -164,17 +163,11 @@ app.post("/create-section", auth, admin, (req, res) => {
     sections.push(newSection);
     saveSections(sections);
 
-    const fileName = name.replace(/\s+/g, '_').toLowerCase() + ".html";
-    
-    try {
-        fs.writeFileSync(fileName, generujSzablonSekcji(name, code));
-        res.json({ 
-            message: "Sekcja utworzona! Jesteś nauczycielem.",
-            file: fileName 
-        });
-    } catch (err) {
-        res.status(500).json({ message: "Błąd zapisu pliku HTML." });
-    }
+    // ZAMIAST TWORZYĆ PLIK, PO PROSTU POTWIERDZAMY SUKCES
+    res.json({ 
+        message: "Sekcja utworzona pomyślnie!",
+        code: code 
+    });
 });
 
 app.post("/join-section", auth, (req, res) => {
