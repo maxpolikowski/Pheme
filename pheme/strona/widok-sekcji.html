@@ -11,6 +11,7 @@
             --dark-gray: #333333;
             --red-header: #ff3b3b;
             --blue-feedback: #007bff;
+            --orange-edit: #ff9800;
         }
 
         body {
@@ -33,16 +34,18 @@
         }
 
         .container {
-            width: 95%;
-            max-width: 1000px;
+            width: 100%;
+            max-width: 1200px;
             margin-top: 30px;
+            padding: 0 15px;
+            box-sizing: border-box;
             position: relative;
         }
 
         .section-badge {
             position: absolute;
-            top: -10px;
-            right: 0;
+            top: -45px;
+            right: 15px;
             background: white;
             padding: 8px 15px;
             border-radius: 10px;
@@ -82,6 +85,8 @@
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.05);
             min-height: 400px;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .tab-content { display: none; }
@@ -96,11 +101,39 @@
         }
 
         .feedback-item {
-            border-left: 4px solid var(--blue-feedback);
-            background: #f0f7ff;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 20px;
             padding: 15px;
-            margin-bottom: 15px;
             border-radius: 0 10px 10px 0;
+        }
+
+        .btn-send-fb {
+            width: 100%;
+            margin-top: 10px;
+            border: none;
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+            transition: background 0.3s ease;
+        }
+
+        /* Domyślny kolor dla przycisków w pytaniach */
+        #pytania .btn-send-fb {
+            background-color: var(--blue-feedback);
+        }
+
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-family: inherit;
+            resize: vertical;
+            margin-top: 10px;
+            box-sizing: border-box;
         }
 
         .note-links a {
@@ -114,7 +147,6 @@
             margin-right: 10px;
             margin-top: 5px;
             font-weight: 500;
-            transition: 0.2s;
         }
 
         .members-layout {
@@ -137,28 +169,6 @@
         }
 
         .back-link { margin-top: 20px; display: block; color: #888; text-decoration: none; text-align: center; }
-
-        textarea {
-            width: 100%;
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-            font-family: inherit;
-            resize: vertical;
-            margin-top: 10px;
-            box-sizing: border-box;
-        }
-
-        .btn-send-fb {
-            margin-top: 10px;
-            background: var(--blue-feedback);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-        }
     </style>
 </head>
 <body>
@@ -196,12 +206,12 @@
 
         <div id="feedback" class="tab-content">
             <h2>Feedback do lekcji</h2>
-            <div id="feedback-container">Ładowanie lekcji do feedbacku...</div>
+            <div id="feedback-container">Ładowanie lekcji...</div>
         </div>
 
         <div id="pytania" class="tab-content">
             <h2>Pytania i Odpowiedzi</h2>
-            <p>Sekcja w przygotowaniu...</p>
+            <div id="pytania-container">Ładowanie modułu...</div>
         </div>
 
         <div id="lista-czlonkow" class="tab-content">
@@ -249,11 +259,10 @@
             }
         } catch (e) { 
             console.error(e);
-            document.getElementById('lista-notatek').innerText = "Błąd ładowania danych.";
+            document.getElementById('lista-notatek').innerText = "Błąd połączenia.";
         }
     }
 
-    // --- TABS ---
     function openTab(evt, tabName) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -261,10 +270,6 @@
         evt.currentTarget.classList.add('active');
 
         if (tabName === 'pytania') przygotujPytania();
-        if (tabName === 'feedback') {
-             // Odśwież feedback przy przełączaniu, by upewnić się, że rola jest znana
-             inicjalizuj(); 
-        }
     }
 
     // --- NOTATKI ---
@@ -320,7 +325,7 @@
                 document.getElementById('form-dodaj-notatke').style.display='none';
                 pobierzNotatki();
             }
-        } catch (e) { alert("Błąd!"); }
+        } catch (e) { alert("Błąd zapisu!"); }
     }
 
     // --- FEEDBACK ---
@@ -333,25 +338,31 @@
             const allFeedbacks = await fbRes.json();
 
             if (rola === "nauczyciel") {
-                if (allFeedbacks.length === 0) { container.innerHTML = "<p>Brak opinii.</p>"; return; }
+                if (allFeedbacks.length === 0) { container.innerHTML = "<p>Brak opinii od uczniów.</p>"; return; }
                 container.innerHTML = allFeedbacks.reverse().map(f => `
-                    <div class="feedback-item" style="background:white">
-                        <small>Lekcja: ${f.lessonName} | Od: ${f.author}</small>
-                        <div>${f.message}</div>
+                    <div class="feedback-item" style="background:white; border-left: 4px solid var(--blue-feedback); box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                        <small>Lekcja: <strong>${f.lessonName}</strong> | Od: ${f.author}</small>
+                        <div style="margin-top:5px;">${f.message}</div>
                     </div>
                 `).join('');
             } else {
                 if (notes.length === 0) { container.innerHTML = "<p>Brak lekcji do oceny.</p>"; return; }
-                const profil = await (await fetch(`${API_URL}/profil`, {headers:{"Authorization":"Bearer "+token}})).json();
+                const profRes = await fetch(`${API_URL}/profil`, {headers:{"Authorization":"Bearer "+token}});
+                const profil = await profRes.json();
                 
                 container.innerHTML = [...notes].reverse().map((n, i) => {
                     const mojFB = allFeedbacks.find(f => f.lessonName === n.lessonName && f.username === profil.username);
                     const czyEdycja = !!mojFB;
+                    const kolorBtn = czyEdycja ? "#ff9800" : "#007bff";
+
                     return `
-                        <div class="feedback-item">
-                            <strong>${n.lessonName}</strong>
-                            <textarea id="fb-text-${i}">${czyEdycja ? mojFB.message : ""}</textarea>
-                            <button class="btn-send-fb" onclick="obsluzFeedback('${n.lessonName}', ${i}, ${czyEdycja})">
+                        <div class="feedback-item" style="border-left: 4px solid ${kolorBtn}; background: #f9f9f9;">
+                            <strong>${n.lessonName}</strong><br>
+                            <small style="color:#888">Lekcja z dnia: ${n.date}</small>
+                            <textarea id="fb-text-${i}" placeholder="Twoja opinia...">${czyEdycja ? mojFB.message : ""}</textarea>
+                            <button class="btn-send-fb" 
+                                onclick="obsluzFeedback('${n.lessonName}', ${i}, ${czyEdycja})"
+                                style="background-color: ${kolorBtn};">
                                 ${czyEdycja ? 'Zaktualizuj opinię' : 'Wyślij opinię'}
                             </button>
                         </div>
@@ -367,18 +378,20 @@
         const endpoint = czyEdycja ? "/edit-feedback" : "/add-feedback";
         const body = czyEdycja ? { code: kod, lessonName, newMessage: msg } : { code: kod, lessonName, message: msg };
         
-        await fetch(`${API_URL}${endpoint}`, {
+        const res = await fetch(`${API_URL}${endpoint}`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
             body: JSON.stringify(body)
         });
-        alert("Gotowe!");
-        inicjalizuj();
+        if(res.ok) {
+            alert("✅ Zapisano!");
+            inicjalizuj();
+        }
     }
 
-    // --- PYTANIA (NOWE) ---
+    // --- PYTANIA ---
     async function przygotujPytania() {
-        const container = document.getElementById('pytania');
+        const container = document.getElementById('pytania-container');
         try {
             const memRes = await fetch(`${API_URL}/section-members/${kod}`, { headers: { "Authorization": "Bearer " + token } });
             const members = await memRes.json();
@@ -388,34 +401,42 @@
             const questions = await qRes.json();
 
             container.innerHTML = `
-                <div style="background:#eee; padding:15px; border-radius:10px; margin-bottom:20px;">
-                    <h3>Zadaj pytanie</h3>
-                    <div id="teachers-list">${teachers.map(t => `<label><input type="checkbox" name="targetT" value="${t.username}"> ${t.name || t.username}</label>`).join(' ')}</div>
-                    <textarea id="q-text" placeholder="Treść pytania..."></textarea>
-                    <button class="btn-send-fb" onclick="wyslijPytanie()">Wyślij do wybranych</button>
-                </div>
-                <div id="q-list">${questions.reverse().map(q => `
-                    <div class="feedback-item" style="border-left-color:purple">
-                        <small>Od: ${q.from} do: ${q.to.join(', ')}</small>
-                        <p>${q.text}</p>
+                <div style="background:#f0f0f0; padding:20px; border-radius:15px; margin-bottom:20px;">
+                    <h3 style="margin-top:0">Zadaj pytanie nauczycielowi</h3>
+                    <div style="margin-bottom:10px;">
+                        ${teachers.map(t => `<label style="margin-right:15px;"><input type="checkbox" name="targetT" value="${t.username}"> ${t.name || t.username}</label>`).join('')}
                     </div>
-                `).join('')}</div>
+                    <textarea id="q-text" placeholder="Twoje pytanie..."></textarea>
+                    <button class="btn-send-fb" onclick="wyslijPytanie()">Wyślij pytanie</button>
+                </div>
+                <div id="q-list">
+                    ${questions.length === 0 ? '<p>Brak pytań.</p>' : questions.reverse().map(q => `
+                        <div class="feedback-item" style="border-left: 4px solid purple; background:white; box-shadow:0 2px 5px rgba(0,0,0,0.05)">
+                            <small>Od: <strong>${q.from}</strong> | Do: ${q.to.join(', ')}</small>
+                            <p style="margin:10px 0;">${q.text}</p>
+                            <small style="color:#aaa">${q.date}</small>
+                        </div>
+                    `).join('')}
+                </div>
             `;
-        } catch (e) { container.innerHTML = "Błąd pytań."; }
+        } catch (e) { container.innerHTML = "Błąd modułu pytań."; }
     }
 
     async function wyslijPytanie() {
-        const text = document.getElementById('q-text').value;
+        const text = document.getElementById('q-text').value.trim();
         const recipients = Array.from(document.querySelectorAll('input[name="targetT"]:checked')).map(cb => cb.value);
-        if(!text || recipients.length === 0) return alert("Wpisz pytanie i wybierz adresata!");
+        if(!text || recipients.length === 0) return alert("Wpisz pytanie i wybierz chociaż jednego nauczyciela!");
 
-        await fetch(`${API_URL}/ask-question`, {
+        const res = await fetch(`${API_URL}/ask-question`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
             body: JSON.stringify({ code: kod, question: text, recipients })
         });
-        alert("Wysłano!");
-        przygotujPytania();
+        if(res.ok) {
+            alert("✅ Pytanie wysłane!");
+            document.getElementById('q-text').value = "";
+            przygotujPytania();
+        }
     }
 
     // --- CZŁONKOWIE ---
@@ -436,7 +457,7 @@
         aL.innerHTML = ""; uL.innerHTML = "";
         members.forEach(m => {
             const name = m.name || m.username;
-            if (m.role === "nauczyciel") aL.innerHTML += `<div class="user-row">${name}</div>`;
+            if (m.role === "nauczyciel") aL.innerHTML += `<div class="user-row"><strong>${name}</strong></div>`;
             else uL.innerHTML += `<div class="user-row">${name}</div>`;
         });
     }
