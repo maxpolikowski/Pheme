@@ -156,19 +156,20 @@ app.get("/moje-sekcje", auth, (req, res) => {
     res.json(mySections);
 });
 
-app.get('/section-members/:code', authenticateToken, (req, res) => {
+app.get('/section-members/:code', auth, (req, res) => {
     const { code } = req.params;
-    const section = sections.find(s => s.kod === code);
+    let sections = loadSections();
+    let users = loadUsers();
+    const section = sections.find(s => s.code === code);
 
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
 
-    // Mapujemy członków, aby zwrócić ich imiona i role
     const memberDetails = section.members.map(m => {
         const user = users.find(u => u.username === m.username);
         return {
             username: m.username,
             name: user ? user.name : m.username,
-            role: m.role // 'uczeń' lub 'nauczyciel'
+            role: m.role
         };
     });
 
@@ -213,14 +214,15 @@ app.delete("/delete-note/:code/:noteId", auth, (req, res) => {
 
 // --- SYSTEM FEEDBACKU ---
 
-app.post('/add-feedback', authenticateToken, (req, res) => {
+app.post('/add-feedback', auth, (req, res) => {
     const { code, lessonName, message } = req.body;
-    const section = sections.find(s => s.kod === code);
+    let sections = loadSections();
+    let users = loadUsers();
+    const section = sections.find(s => s.code === code);
     const user = users.find(u => u.username === req.user.username);
 
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
 
-    // Tworzymy obiekt feedbacku
     const newFeedback = {
         id: Date.now().toString(),
         lessonName,
@@ -233,6 +235,7 @@ app.post('/add-feedback', authenticateToken, (req, res) => {
 
     if (!section.feedbacks) section.feedbacks = [];
     section.feedbacks.push(newFeedback);
+    saveSections(sections);
 
     res.json({ message: "Feedback dodany!" });
 });
@@ -245,7 +248,7 @@ app.get("/section-feedback/:code", auth, (req, res) => {
     const isTeacher = member && member.role === "nauczyciel";
     const isAdmin = req.user.role === "admin";
     const allFbs = section.feedbacks || [];
-    // Jeśli nauczyciel/admin -> widzi wszystko. Jeśli uczeń -> widzi tylko swoje.
+
     if (isTeacher || isAdmin) {
         res.json(allFbs);
     } else {
@@ -253,24 +256,26 @@ app.get("/section-feedback/:code", auth, (req, res) => {
     }
 });
 
-app.post('/edit-feedback', authenticateToken, (req, res) => {
+app.post('/edit-feedback', auth, (req, res) => {
     const { code, lessonName, newMessage } = req.body;
-    const section = sections.find(s => s.kod === code);
+    let sections = loadSections();
+    const section = sections.find(s => s.code === code);
 
     if (!section || !section.feedbacks) return res.status(404).json({ message: "Błąd sekcji" });
 
-    // Szukamy feedbacku tego konkretnego użytkownika do tej konkretnej lekcji
     const fb = section.feedbacks.find(f => f.lessonName === lessonName && f.username === req.user.username);
 
     if (fb) {
         fb.message = newMessage;
         fb.edited = true;
         fb.date = new Date().toLocaleString() + " (edytowano)";
+        saveSections(sections);
         return res.json({ message: "Zaktualizowano feedback" });
     }
 
     res.status(404).json({ message: "Nie znaleziono Twojej opinii do edycji" });
 });
+
 app.post("/promote-to-teacher", auth, (req, res) => {
     const { code, targetUsername } = req.body;
     let sections = loadSections();
@@ -278,15 +283,12 @@ app.post("/promote-to-teacher", auth, (req, res) => {
 
     if (!section) return res.status(404).json({ message: "Nie znaleziono sekcji" });
 
-    // Pobieramy dane o użytkowniku wewnątrz sekcji
     const meInSection = section.members.find(m => m.username === req.user.username);
-    
-    // SPRAWDZENIE: Czy jest adminem globalnym I nauczycielem sekcji?
     const isGlobalAdmin = req.user.role === "admin";
     const isSectionTeacher = meInSection && meInSection.role === "nauczyciel";
 
     if (!(isGlobalAdmin && isSectionTeacher)) {
-        return res.status(403).json({ message: "Musisz być jednocześnie Adminem i Nauczycielem sekcji, aby to zrobić." });
+        return res.status(403).json({ message: "Musisz być jednocześnie Adminem i Nauczycielem sekcji." });
     }
 
     const targetMember = section.members.find(m => m.username === targetUsername);
@@ -296,6 +298,7 @@ app.post("/promote-to-teacher", auth, (req, res) => {
     saveSections(sections);
     res.json({ message: `Użytkownik ${targetUsername} został mianowany nauczycielem!` });
 });
+
 // --- INNE ---
 
 app.post("/reset", auth, admin, (req, res) => {
@@ -304,9 +307,9 @@ app.post("/reset", auth, admin, (req, res) => {
     saveSections([]);
     res.send("Baza zresetowana");
 });
-// --- SYSTEM PYTAŃ (KONWERSACJE) ---
 
-// 1. Rozpoczęcie nowego wątku
+// --- SYSTEM PYTAŃ ---
+
 app.post("/ask-question", auth, (req, res) => {
     const { code, subject, question, recipients } = req.body; 
     let sections = loadSections();
@@ -333,7 +336,6 @@ app.post("/ask-question", auth, (req, res) => {
     res.json({ message: "Pytanie wysłane!" });
 });
 
-// 2. Pobieranie listy wątków
 app.get("/section-questions/:code", auth, (req, res) => {
     const sections = loadSections();
     const section = sections.find(s => s.code === req.params.code);
@@ -342,7 +344,6 @@ app.get("/section-questions/:code", auth, (req, res) => {
     const allQs = section.questions || [];
     const myUsername = req.user.username;
 
-    // Widzisz wątek jeśli go zacząłeś LUB jeśli jesteś odbiorcą (nauczycielem)
     const filtered = allQs.filter(q => 
         q.fromUsername === myUsername || q.to.includes(myUsername)
     );
@@ -350,7 +351,6 @@ app.get("/section-questions/:code", auth, (req, res) => {
     res.json(filtered);
 });
 
-// 3. Odpowiedź w istniejącym wątku
 app.post("/reply-question", auth, (req, res) => {
     const { code, questionId, text } = req.body;
     let sections = loadSections();
@@ -376,52 +376,37 @@ app.post("/reply-question", auth, (req, res) => {
     saveSections(sections);
     res.json({ message: "Dodano odpowiedź!" });
 });
-app.post("/remove-from-section", auth, async (req, res) => {
+
+app.post("/remove-from-section", auth, (req, res) => {
     const { code, targetUsername } = req.body;
     const requesterUsername = req.user.username; 
-    const requesterGlobalRole = req.user.role; // Pobiera 'admin' lub 'user' z tokena
+    const requesterGlobalRole = req.user.role;
 
-    try {
-        let sections = loadSections();
-        const section = sections.find(s => s.code === code);
-        if (!section) return res.status(404).json({ message: "Nie znaleziono sekcji." });
+    let sections = loadSections();
+    const section = sections.find(s => s.code === code);
+    if (!section) return res.status(404).json({ message: "Nie znaleziono sekcji." });
 
-        // 1. Sprawdzamy czy wykonujący jest w tej sekcji i jaką ma tam rolę
-        const memberInSec = section.members.find(m => m.username === requesterUsername);
-        const isSectionTeacher = memberInSec && memberInSec.role === "nauczyciel";
+    const memberInSec = section.members.find(m => m.username === requesterUsername);
+    const isSectionTeacher = memberInSec && memberInSec.role === "nauczyciel";
 
-        // LOGIKA: Musisz być ADMINEM (globalnie) ORAZ NAUCZYCIELEM (w sekcji)
-        if (requesterGlobalRole !== "admin" || !isSectionTeacher) {
-            return res.status(403).json({ 
-                message: "Błąd uprawnień: Musisz być Adminem globalnym i Nauczycielem tej sekcji." 
-            });
-        }
-
-        // 2. Sprawdzamy cel (kogo wyrzucamy)
-        let users = loadUsers();
-        const targetUser = users.find(u => u.username === targetUsername);
-
-        // BLOKADA: Nie można wyrzucić innego Admina globalnego
-        if (targetUser && targetUser.role === "admin") {
-            return res.status(403).json({ message: "Nie można usuwać innych administratorów." });
-        }
-
-        // 3. Usuwanie z tablicy
-        const memberIndex = section.members.findIndex(m => m.username === targetUsername);
-        if (memberIndex === -1) return res.status(404).json({ message: "Użytkownik nie jest w tej sekcji." });
-
-        if (targetUsername === requesterUsername) {
-            return res.status(400).json({ message: "Nie możesz wyrzucić samego siebie." });
-        }
-
-        section.members.splice(memberIndex, 1);
-        saveSections(sections);
-
-        res.json({ message: `Usunięto użytkownika ${targetUsername}.` });
-
-    } catch (error) {
-        res.status(500).json({ message: "Błąd serwera." });
+    if (requesterGlobalRole !== "admin" || !isSectionTeacher) {
+        return res.status(403).json({ message: "Błąd uprawnień." });
     }
+
+    let users = loadUsers();
+    const targetUser = users.find(u => u.username === targetUsername);
+    if (targetUser && targetUser.role === "admin") {
+        return res.status(403).json({ message: "Nie można usuwać innych administratorów." });
+    }
+
+    const memberIndex = section.members.findIndex(m => m.username === targetUsername);
+    if (memberIndex === -1) return res.status(404).json({ message: "Użytkownik nie jest w tej sekcji." });
+
+    section.members.splice(memberIndex, 1);
+    saveSections(sections);
+
+    res.json({ message: `Usunięto użytkownika ${targetUsername}.` });
 });
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Serwer działa na porcie " + PORT));
