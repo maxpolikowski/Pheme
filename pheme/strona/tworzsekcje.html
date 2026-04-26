@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pheme - Tworzenie Sekcji</title>
+    <style>
+        :root {
+            --primary-green: #00ce52;
+            --bg-gray: #f5f5f5;
+            --dark-gray: #333333;
+            --red-header: #ff3b3b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-gray);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .header-bar {
+            width: 100%;
+            background: linear-gradient(to right, #ffffff, var(--red-header));
+            text-align: center;
+            padding: 15px 0;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 40px;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 40px;
+            max-width: 900px;
+            width: 95%;
+            align-items: start;
+        }
+
+        /* LEWA KOLUMNA - JEDNA KACZKA */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .duck-box {
+            text-align: center;
+            width: 100%;
+        }
+
+        .duck-img {
+            width: 100%;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+        .duck-img:hover { transform: scale(1.05); }
+
+        .duck-caption {
+            font-size: 0.7rem;
+            color: #888;
+            margin-top: 5px;
+            text-decoration: none;
+        }
+
+        /* KARTA TWORZENIA */
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+
+        h2 { margin-top: 0; color: var(--dark-gray); }
+
+        .form-group { margin-bottom: 25px; }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input:focus { border-color: var(--primary-green); }
+
+        .code-display {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-green { background: var(--primary-green); color: white; width: 100%; margin-top: 10px; }
+        .btn-gray { background: var(--dark-gray); color: white; }
+        .btn:hover { opacity: 0.9; }
+
+        #wynik {
+            margin-top: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header-bar">Panel Administracyjny - Nowa Sekcja</div>
+
+<div class="container">
+    <div class="sidebar" id="duckSidebar"></div>
+
+    <div class="card" id="mainCard">
+        <h2>Stwórz nową sekcję</h2>
+        
+        <div class="form-group">
+            <label>Nazwa sekcji</label>
+            <input type="text" id="sectionName" placeholder="np. 8e 2025/2026">
+        </div>
+
+        <div class="form-group">
+            <label>Kod dołączenia</label>
+            <div class="code-display">
+                <input type="text" id="sectionCode" placeholder="Kliknij Generuj ->" readonly>
+                <button class="btn btn-gray" onclick="generujKod()">Generuj</button>
+            </div>
+        </div>
+
+        <button class="btn btn-green" onclick="zapiszSekcje()">Utwórz sekcję</button>
+        
+        <p id="wynik"></p>
+    </div>
+</div>
+
+<script>
+    const API_URL = "https://pheme-spmz.onrender.com";
+    const token = localStorage.getItem("token");
+
+    if (!token) window.location.href = "index.html";
+
+    // --- FUNKCJA LOSUJĄCA TYLKO JEDNĄ KACZKĘ ---
+    function generujKaczki() {
+        const sidebar = document.getElementById("duckSidebar");
+        if (!sidebar) return;
+
+        sidebar.innerHTML = ""; 
+
+        const numery = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 67];
+        
+        // Losujemy tylko jeden numer z tablicy
+        const n = numery[Math.floor(Math.random() * numery.length)];
+
+        const duckHtml = `
+            <div class="duck-box">
+                <a href="sekcje.html" style="text-decoration: none;">
+                    <img src="../../kaczki/proste/kaczka_${n}.png" alt="Kaczka" class="duck-img">
+                    
+                </a>
+            </div>
+        `;
+        sidebar.insertAdjacentHTML('beforeend', duckHtml);
+    }
+
+    function generujKod() {
+        const kod = Math.floor(100000 + Math.random() * 900000);
+        document.getElementById("sectionCode").value = kod;
+    }
+
+    async function zapiszSekcje() {
+        const nazwa = document.getElementById("sectionName").value.trim();
+        const kod = document.getElementById("sectionCode").value;
+        const wynikEl = document.getElementById("wynik");
+
+        if (!nazwa || !kod) {
+            wynikEl.style.color = "var(--red-header)";
+            wynikEl.innerText = "Podaj nazwę i wygeneruj kod!";
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_URL}/create-section`, {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                },
+                body: JSON.stringify({ name: nazwa, code: kod })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                wynikEl.style.color = "var(--primary-green)";
+                wynikEl.innerText = "Sekcja utworzona pomyślnie!";
+                setTimeout(() => window.location.href = "sekcje.html", 1500);
+            } else {
+                wynikEl.style.color = "var(--red-header)";
+                wynikEl.innerText = data.message || "Błąd podczas tworzenia";
+            }
+        } catch (e) {
+            wynikEl.style.color = "var(--red-header)";
+            wynikEl.innerText = "Błąd połączenia z serwerem";
+        }
+    }
+
+    // Inicjalizacja tylko raz przy starcie (nie potrzebujemy onresize dla jednej kaczki)
+    window.onload = generujKaczki;
+</script>
+
+</body>
+</html>
