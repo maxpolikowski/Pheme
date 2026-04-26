@@ -295,8 +295,10 @@ app.post("/reset", auth, admin, (req, res) => {
     res.send("Baza zresetowana");
 });
 // Wysyłanie pytania
+// Wysyłanie pytania (ZAKTUALIZOWANE o temat)
 app.post("/ask-question", auth, (req, res) => {
-    const { code, question, recipients } = req.body; // recipients to tablica username'ów
+    // Dodajemy 'subject' do destrukturyzacji
+    const { code, subject, question, recipients } = req.body; 
     let sections = loadSections();
     const section = sections.find(s => s.code === code);
 
@@ -310,10 +312,11 @@ app.post("/ask-question", auth, (req, res) => {
         id: Date.now(),
         from: me.name || me.username,
         fromUsername: me.username,
+        subject: subject || "Brak tematu", // Zapisujemy temat w bazie
         text: question,
-        to: recipients, // Lista osób, które mają to dostać
+        to: recipients, 
         date: new Date().toLocaleString("pl-PL"),
-        answers: [] // Tu nauczyciele będą mogli dopisywać odpowiedzi
+        answers: [] 
     });
 
     saveSections(sections);
