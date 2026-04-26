@@ -53,12 +53,6 @@
             display: none;
         }
 
-        .section-badge span {
-            color: var(--primary-green);
-            margin-left: 5px;
-            user-select: all;
-        }
-
         .tabs {
             display: flex;
             gap: 10px;
@@ -99,6 +93,7 @@
             margin-bottom: 10px;
             border-radius: 0 10px 10px 0;
         }
+
         .note-links a {
             display: inline-block;
             background: white;
@@ -111,10 +106,6 @@
             margin-top: 5px;
             font-weight: 500;
             transition: 0.2s;
-        }
-        .note-links a:hover {
-            background: #f0f7ff;
-            border-color: #007bff;
         }
 
         .members-layout {
@@ -131,24 +122,21 @@
             border: 1px solid #eee;
         }
 
-        .member-col h3 { margin-top: 0; font-size: 1.1rem; color: var(--dark-gray); border-bottom: 2px solid var(--primary-green); padding-bottom: 5px; }
-
         .user-row {
             padding: 8px 0;
             border-bottom: 1px solid #eee;
-            color: #444;
         }
 
-        .user-row:last-child { border-bottom: none; }
+        .feedback-card {
+            background: #fff;
+            border: 1px solid #eee;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border-left: 4px solid #007bff;
+        }
+
         .back-link { margin-top: 20px; display: block; color: #888; text-decoration: none; text-align: center; }
-
-        @media (max-width: 600px) {
-            .section-badge {
-                position: static;
-                text-align: center;
-                margin-bottom: 15px;
-            }
-        }
     </style>
 </head>
 <body>
@@ -175,37 +163,43 @@
 
             <div id="form-dodaj-notatke" style="display:none; background: #eee; padding: 20px; border-radius: 15px; margin-bottom: 25px;">
                 <h3 style="margin-top:0">Nowa lekcja</h3>
-                <input type="text" id="note-lesson-name" placeholder="Nazwa lekcji (np. Lekcja 1: Wstęp)" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box;">
-                <input type="url" id="note-link1" placeholder="Pełny adres URL (np. https://strona.pl/notatki)" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box;">
-                <input type="url" id="note-link2" placeholder="Opcjonalny drugi link" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box;">
+                <input type="text" id="note-lesson-name" placeholder="Nazwa lekcji" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 8px;">
+                <input type="url" id="note-link1" placeholder="Link 1" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 8px;">
+                <input type="url" id="note-link2" placeholder="Opcjonalny Link 2" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 8px;">
                 <button onclick="dodajNotatke()" style="background: var(--primary-green); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">Zapisz lekcję</button>
                 <button onclick="document.getElementById('form-dodaj-notatke').style.display='none'" style="background: #999; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-left: 10px;">Anuluj</button>
             </div>
-
             <div id="lista-notatek">Ładowanie materiałów...</div>
         </div>
 
         <div id="feedback" class="tab-content">
-            <h2>Feedback</h2>
-            <p>Opinie i uwagi...</p>
+            <h2>Feedback do lekcji</h2>
+            
+            <div id="feedback-form-container" style="display:none; background: #f0f7ff; padding: 20px; border-radius: 15px; margin-bottom: 25px; border: 1px solid #cce5ff;">
+                <h3 style="margin-top:0">Wyślij opinię</h3>
+                <select id="feedback-lesson-select" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 8px;">
+                    <option value="">Wybierz lekcję...</option>
+                </select>
+                <textarea id="feedback-text" placeholder="Twoja opinia do tej lekcji..." style="width: 100%; padding: 10px; height: 80px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-family: inherit;"></textarea>
+                <button onclick="wyslijFeedback()" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">Wyślij wiadomość</button>
+            </div>
+
+            <div id="feedback-admin-list" style="display:none;">
+                <h3>Ostatnio napisane feedbacki</h3>
+                <div id="lista-odebranych-feedbackow">Ładowanie...</div>
+            </div>
         </div>
 
         <div id="pytania" class="tab-content">
             <h2>Pytania i Odpowiedzi</h2>
-            <p>Zadaj pytanie do lekcji...</p>
+            <p>Sekcja w przygotowaniu...</p>
         </div>
 
         <div id="lista-czlonkow" class="tab-content">
             <h2>Lista członków sekcji</h2>
             <div class="members-layout">
-                <div class="member-col">
-                    <h3>Nauczyciele</h3>
-                    <div id="admins-list"></div>
-                </div>
-                <div class="member-col">
-                    <h3>Uczniowie</h3>
-                    <div id="users-list"></div>
-                </div>
+                <div class="member-col"><h3>Nauczyciele</h3><div id="admins-list"></div></div>
+                <div class="member-col"><h3>Uczniowie</h3><div id="users-list"></div></div>
             </div>
         </div>
     </div>
@@ -231,55 +225,59 @@
 
             if (taSekcja) {
                 document.getElementById('section-title').innerText = taSekcja.name;
+                const czyNauczyciel = taSekcja.rola === "nauczyciel";
 
-                if (taSekcja.rola === "nauczyciel") {
-                    const badge = document.getElementById('section-code-badge');
+                if (czyNauczyciel) {
+                    document.getElementById('section-code-badge').style.display = 'block';
                     document.getElementById('display-kod').innerText = kod;
-                    badge.style.display = 'block';
                     document.getElementById('btn-pokaz-form-notatki').style.display = 'block';
                     dodajPrzyciskAdmina();
-                    pobierzCzlonkow(); 
+                    pobierzCzlonkow();
                 }
+
                 pobierzNotatki();
+                przygotujFeedback(taSekcja.rola);
             }
         } catch (e) { console.error(e); }
     }
 
-   async function pobierzNotatki() {
+    // --- LOGIKA NOTATEK ---
+    async function pobierzNotatki() {
         try {
             const res = await fetch(`${API_URL}/section-notes/${kod}`, {
                 headers: { "Authorization": "Bearer " + token }
             });
             const notes = await res.json();
             const container = document.getElementById('lista-notatek');
+            const selectFeedback = document.getElementById('feedback-lesson-select');
             
             if (notes.length === 0) {
-                container.innerHTML = "<p>Brak dodanych notatek dla tej sekcji.</p>";
+                container.innerHTML = "<p>Brak dodanych notatek.</p>";
                 return;
             }
 
+            // Aktualizacja selecta w feedbacku
+            selectFeedback.innerHTML = '<option value="">Wybierz lekcję...</option>';
+            
             const czyNauczyciel = document.getElementById('btn-pokaz-form-notatki').style.display === 'block';
 
             container.innerHTML = notes.reverse().map(n => {
-                // Sprawdzamy, czy link2 w ogóle istnieje i nie jest pustym tekstem
-                const maDrugiLink = n.link2 && n.link2.trim() !== "";
-                
-                // Jeśli ma drugi link, nazwij pierwszy "Notatki 1", w przeciwnym razie po prostu "Notatki"
-                const tekstLinku1 = maDrugiLink ? "🔗 Notatki 1" : "🔗 Notatki";
+                // Dodaj lekcję do selecta
+                const opt = document.createElement('option');
+                opt.value = n.lessonName; opt.innerText = n.lessonName;
+                selectFeedback.appendChild(opt);
 
+                const maDrugiLink = n.link2 && n.link2.trim() !== "";
+                const tekstLinku1 = maDrugiLink ? "🔗 Notatki 1" : "🔗 Notatki";
+                
                 return `
                     <div class="note-item">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                            <div style="flex: 1;">
-                                <div style="font-size: 0.75rem; color: #888; margin-bottom: 5px;">${n.date}</div>
-                                <strong style="font-size: 1.1rem; display: block; margin-bottom: 10px;">${n.lessonName}</strong>
+                        <div style="display: flex; justify-content: space-between;">
+                            <div>
+                                <small style="color: #888;">${n.date}</small><br>
+                                <strong>${n.lessonName}</strong>
                             </div>
-                            ${czyNauczyciel ? `
-                                <button onclick="usunNotatke('${n.id}')" 
-                                        style="background: #ffebeb; color: #ff3b3b; border: 1px solid #ff3b3b; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; font-weight: bold;">
-                                    Usuń
-                                </button>
-                            ` : ''}
+                            ${czyNauczyciel ? `<button onclick="usunNotatke('${n.id}')" style="color:red; border:none; background:none; cursor:pointer;">Usuń</button>` : ''}
                         </div>
                         <div class="note-links">
                             <a href="${n.link1}" target="_blank">${tekstLinku1}</a>
@@ -288,77 +286,91 @@
                     </div>
                 `;
             }).join('');
-        } catch (e) { console.error("Błąd pobierania notatek", e); }
-    }
-
-    async function usunNotatke(noteId) {
-        if (!confirm("Czy na pewno chcesz usunąć tę lekcję?")) return;
-        try {
-            const res = await fetch(`${API_URL}/delete-note/${kod}/${noteId}`, {
-                method: "DELETE",
-                headers: { "Authorization": "Bearer " + token }
-            });
-            if (res.ok) pobierzNotatki();
-            else {
-                const err = await res.json();
-                alert("Błąd: " + err.message);
-            }
-        } catch (e) { alert("Błąd połączenia z serwerem"); }
+        } catch (e) { console.error(e); }
     }
 
     async function dodajNotatke() {
         const lessonName = document.getElementById('note-lesson-name').value;
-        let link1 = document.getElementById('note-link1').value;
-        let link2 = document.getElementById('note-link2').value;
-
-        if (!lessonName || !link1) return alert("Podaj nazwę lekcji i link do strony!");
-
-        // Automatyczne dodawanie https:// jeśli użytkownik zapomni
-        if (!link1.startsWith('http')) link1 = 'https://' + link1;
-        if (link2 && !link2.startsWith('http')) link2 = 'https://' + link2;
-
+        let l1 = document.getElementById('note-link1').value;
+        let l2 = document.getElementById('note-link2').value;
+        if(!lessonName || !l1) return alert("Uzupełnij dane!");
+        
         try {
             const res = await fetch(`${API_URL}/add-note`, {
                 method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token 
-                },
-                body: JSON.stringify({ code: kod, lessonName, link1, link2 })
+                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+                body: JSON.stringify({ code: kod, lessonName, link1: l1, link2: l2 })
             });
-
-            if (res.ok) {
-                document.getElementById('form-dodaj-notatke').style.display = 'none';
-                document.getElementById('note-lesson-name').value = "";
-                document.getElementById('note-link1').value = "";
-                document.getElementById('note-link2').value = "";
-                pobierzNotatki();
-            } else {
-                const err = await res.json();
-                alert(err.message);
+            if (res.ok) { 
+                document.getElementById('form-dodaj-notatke').style.display='none';
+                pobierzNotatki(); 
             }
+        } catch (e) { alert("Błąd!"); }
+    }
+
+    // --- LOGIKA FEEDBACKU ---
+    function przygotujFeedback(rola) {
+        if (rola === "nauczyciel") {
+            document.getElementById('feedback-admin-list').style.display = 'block';
+            pobierzWszystkieFeedbacki();
+        } else {
+            document.getElementById('feedback-form-container').style.display = 'block';
+        }
+    }
+
+    async function wyslijFeedback() {
+        const lessonName = document.getElementById('feedback-lesson-select').value;
+        const message = document.getElementById('feedback-text').value;
+        if (!lessonName || !message) return alert("Wybierz lekcję i wpisz treść!");
+
+        try {
+            const res = await fetch(`${API_URL}/add-feedback`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+                body: JSON.stringify({ code: kod, lessonName, message })
+            });
+            if (res.ok) { alert("Wysłano!"); document.getElementById('feedback-text').value=""; }
         } catch (e) { alert("Błąd połączenia"); }
     }
 
-    // Pozostałe funkcje (admin, członkowie, taby) bez zmian
+    async function pobierzWszystkieFeedbacki() {
+        try {
+            const res = await fetch(`${API_URL}/section-feedback/${kod}`, {
+                headers: { "Authorization": "Bearer " + token }
+            });
+            const feedbacks = await res.json();
+            const container = document.getElementById('lista-odebranych-feedbackow');
+            
+            container.innerHTML = feedbacks.reverse().map(f => `
+                <div class="feedback-card">
+                    <small>Lekcja: <strong>${f.lessonName}</strong> | Od: ${f.author || 'Uczeń'}</small>
+                    <div style="margin-top:5px;">${f.message}</div>
+                </div>
+            `).join('') || "<p>Brak feedbacku.</p>";
+        } catch (e) { console.error(e); }
+    }
+
+    // --- CZŁONKOWIE I TABY ---
     function dodajPrzyciskAdmina() {
-        const tabsContainer = document.getElementById('tabs-container');
+        const tabs = document.getElementById('tabs-container');
         if (document.querySelector('.admin-btn')) return;
         const btn = document.createElement('button');
         btn.className = 'tab-btn admin-btn';
         btn.innerText = 'Lista członków';
         btn.onclick = (e) => openTab(e, 'lista-czlonkow');
-        tabsContainer.appendChild(btn);
+        tabs.appendChild(btn);
     }
 
     async function pobierzCzlonkow() {
         try {
+            // 1. Najpierw sprawdzamy Twój profil, żeby wiedzieć czy jesteś Adminem systemu
             const profilRes = await fetch(`${API_URL}/profil`, {
                 headers: { "Authorization": "Bearer " + token }
             });
             const profil = await profilRes.json();
             const czyJestemAdminemSystemu = (profil.role === "admin");
 
+            // 2. Pobieramy listę członków sekcji
             const res = await fetch(`${API_URL}/section-members/${kod}`, {
                 headers: { "Authorization": "Bearer " + token }
             });
@@ -372,11 +384,21 @@
 
             members.forEach(m => {
                 const doWyswietlenia = m.name && m.name.trim() !== "" ? m.name : m.username;
+                
                 if (m.role === "nauczyciel" || m.role === "admin") {
                     adminsList.insertAdjacentHTML('beforeend', `<div class="user-row"><strong>${doWyswietlenia}</strong></div>`);
                 } else {
-                    let buttonHtml = czyJestemAdminemSystemu ? `<button onclick="awansujNaNaunczyciela('${m.username}')" style="padding: 2px 8px; font-size: 0.7rem; background: #ff3b3b; color: white; border: none; border-radius: 5px; cursor: pointer;">Daj Nauczyciela</button>` : "";
-                    usersList.insertAdjacentHTML('beforeend', `<div class="user-row" style="display: flex; justify-content: space-between; align-items: center;"><span>${doWyswietlenia}</span>${buttonHtml}</div>`);
+                    // Jeśli jesteś adminem systemu, dodajemy przycisk awansu
+                    let buttonHtml = czyJestemAdminemSystemu 
+                        ? `<button onclick="awansujNaNaunczyciela('${m.username}')" style="padding: 2px 8px; font-size: 0.7rem; background: #ff3b3b; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">Awansuj na nauczyciela / tylko admini</button>` 
+                        : "";
+                    
+                    usersList.insertAdjacentHTML('beforeend', `
+                        <div class="user-row" style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>${doWyswietlenia}</span>
+                            ${buttonHtml}
+                        </div>
+                    `);
                 }
             });
         } catch (e) { console.error("Błąd listy osób", e); }
@@ -387,11 +409,21 @@
         try {
             const res = await fetch(`${API_URL}/promote-to-teacher`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+                headers: { 
+                    "Content-Type": "application/json", 
+                    "Authorization": "Bearer " + token 
+                },
                 body: JSON.stringify({ code: kod, targetUsername: targetUsername })
             });
-            if (res.ok) { alert("Sukces!"); pobierzCzlonkow(); }
-        } catch (e) { alert("Błąd!"); }
+            
+            if (res.ok) { 
+                alert("Użytkownik został nauczycielem w tej sekcji!"); 
+                pobierzCzlonkow(); 
+            } else {
+                const err = await res.json();
+                alert("Błąd: " + err.message);
+            }
+        } catch (e) { alert("Błąd połączenia!"); }
     }
 
     function openTab(evt, tabName) {
