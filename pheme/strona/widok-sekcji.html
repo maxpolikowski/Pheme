@@ -558,40 +558,46 @@
     }
 
     async function pobierzCzlonkow() {
-        try {
-            const profRes = await fetch(`${API_URL}/profil`, { headers: { "Authorization": "Bearer " + token } });
-            const profil = await profRes.json();
-            const res = await fetch(`${API_URL}/section-members/${kod}`, { headers: { "Authorization": "Bearer " + token } });
-            const members = await res.json();
-            
-            const jaWsekcji = members.find(m => m.username === profil.username);
-            // Sprawdzamy czy użytkownik ma prawo zarządzać (Admin + Nauczyciel w tej sekcji)
-            const mozeZarzadzac = profil.role === "admin" && (jaWsekcji && jaWsekcji.role === "nauczyciel");
-            
-            const aL = document.getElementById('admins-list');
-            const uL = document.getElementById('users-list');
-            aL.innerHTML = ""; uL.innerHTML = "";
+    try {
+        const profRes = await fetch(`${API_URL}/profil`, { headers: { "Authorization": "Bearer " + token } });
+        const profil = await profRes.json();
+        
+        const res = await fetch(`${API_URL}/section-members/${kod}`, { headers: { "Authorization": "Bearer " + token } });
+        const members = await res.json();
+        
+        const jaWsekcji = members.find(m => m.username === profil.username);
+        // Warunek wejścia: Musisz być Adminem globalnym I Nauczycielem w tej sekcji
+        const mozeZarzadzac = profil.role === "admin" && (jaWsekcji && jaWsekcji.role === "nauczyciel");
+        
+        const aL = document.getElementById('admins-list');
+        const uL = document.getElementById('users-list');
+        aL.innerHTML = ""; uL.innerHTML = "";
 
-            members.forEach(m => {
-                const name = m.name || m.username;
-                const isMe = m.username === profil.username;
+        members.forEach(m => {
+            const name = m.name || m.username;
+            const isMe = m.username === profil.username;
 
-                if (m.role === "nauczyciel") {
-                    // Nauczycieli nie usuwamy (chyba że samych siebie, ale bezpieczniej zablokować)
-                    aL.innerHTML += `<div class="user-row"><strong>${name}</strong> ${isMe ? '<small>(Ty)</small>' : ''}</div>`;
-                } else {
-                    let actions = "";
-                    if (mozeZarzadzac) {
-                        actions = `
-                            <button onclick="awansujNaNauczyciela('${m.username}')" style="margin-left:10px; font-size:0.7rem; cursor:pointer; background:var(--primary-green); color:white; border:none; border-radius:4px; padding:2px 5px;">Daj nauczyciela</button>
-                            <button onclick="usunZSekcji('${m.username}')" style="margin-left:5px; font-size:0.7rem; cursor:pointer; background:var(--red-header); color:white; border:none; border-radius:4px; padding:2px 5px;">Usuń</button>
-                        `;
-                    }
-                    uL.innerHTML += `<div class="user-row">${name}${actions}</div>`;
+            // Tworzymy przyciski akcji
+            let actions = "";
+            if (mozeZarzadzac && !isMe) {
+                // Przycisk usuwania - teraz dostępny dla obu list
+                actions = `<button onclick="usunZSekcji('${m.username}')" style="margin-left:10px; font-size:0.7rem; cursor:pointer; background:var(--red-header); color:white; border:none; border-radius:4px; padding:2px 5px;">Usuń</button>`;
+                
+                // Jeśli to uczeń, dodaj też przycisk awansu
+                if (m.role !== "nauczyciel") {
+                    actions = `<button onclick="awansujNaNauczyciela('${m.username}')" style="margin-left:10px; font-size:0.7rem; cursor:pointer; background:var(--primary-green); color:white; border:none; border-radius:4px; padding:2px 5px;">Daj nauczyciela</button>` + actions;
                 }
-            });
-        } catch (e) { console.error(e); }
-    }
+            }
+
+            // Rozdzielamy do odpowiednich kolumn, ale z przyciskami!
+            if (m.role === "nauczyciel") {
+                aL.innerHTML += `<div class="user-row"><strong>${name}</strong> ${isMe ? '<small>(Ty)</small>' : actions}</div>`;
+            } else {
+                uL.innerHTML += `<div class="user-row">${name} ${actions}</div>`;
+            }
+        });
+    } catch (e) { console.error(e); }
+}
 
     async function awansujNaNauczyciela(targetUsername) {
         if (!confirm(`Mianować ${targetUsername} nauczycielem?`)) return;
