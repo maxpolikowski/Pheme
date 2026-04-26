@@ -453,10 +453,10 @@
             members.forEach(m => {
                 const name = m.name || m.username;
                 if (m.role === "nauczyciel") {
-                    aL.innerHTML += `<div class="user-row"><strong>⭐ ${name}</strong></div>`;
+                    aL.innerHTML += `<div class="user-row"><strong>${name}</strong></div>`;
                 } else {
                     const btnAwans = mozeNadawac 
-                        ? `<button onclick="awansujNaNauczyciela('${m.username}')" style="margin-left:10px; font-size:0.7rem; cursor:pointer; background:var(--primary-green); color:white; border:none; border-radius:4px; padding:2px 5px;">Daj nauczyciela</button>` 
+                        ? `<button onclick="awansujNaNauczyciela('${m.username}')" style="margin-left:10px; font-size:0.7rem; cursor:pointer; background:red; color:white; border:none; border-radius:4px; padding:2px 5px;">Daj nauczyciela</button>` 
                         : "";
                     uL.innerHTML += `<div class="user-row">${name}${btnAwans}</div>`;
                 }
