@@ -295,10 +295,10 @@ app.post("/reset", auth, admin, (req, res) => {
     saveSections([]);
     res.send("Baza zresetowana");
 });
-// Wysyłanie pytania
-// Wysyłanie pytania (ZAKTUALIZOWANE o temat)
+// --- SYSTEM PYTAŃ (KONWERSACJE) ---
+
+// 1. Rozpoczęcie nowego wątku
 app.post("/ask-question", auth, (req, res) => {
-    // Dodajemy 'subject' do destrukturyzacji
     const { code, subject, question, recipients } = req.body; 
     let sections = loadSections();
     const section = sections.find(s => s.code === code);
@@ -309,27 +309,22 @@ app.post("/ask-question", auth, (req, res) => {
     const users = loadUsers();
     const me = users.find(u => u.username === req.user.username);
 
-    // ... początek endpointu bez zmian ...
     section.questions.push({
-        id: Date.now().toString(), // Zamieniamy na string dla pewności
+        id: Date.now().toString(), 
         from: me.name || me.username,
         fromUsername: me.username,
         subject: subject || "Brak tematu",
         text: question,
         to: recipients, 
         date: new Date().toLocaleString("pl-PL"),
-        replies: [] // Zmienione z 'answers' na 'replies'
+        replies: [] 
     });
 
     saveSections(sections);
     res.json({ message: "Pytanie wysłane!" });
 });
 
-    saveSections(sections);
-    res.json({ message: "Pytanie wysłane!" });
-});
-
-// Pobieranie pytań (uczeń widzi swoje, nauczyciel te skierowane do niego)
+// 2. Pobieranie listy wątków
 app.get("/section-questions/:code", auth, (req, res) => {
     const sections = loadSections();
     const section = sections.find(s => s.code === req.params.code);
@@ -338,14 +333,15 @@ app.get("/section-questions/:code", auth, (req, res) => {
     const allQs = section.questions || [];
     const myUsername = req.user.username;
 
-    // Filtrowanie: Widzisz pytanie jeśli je zadałeś LUB jeśli jesteś na liście odbiorców
+    // Widzisz wątek jeśli go zacząłeś LUB jeśli jesteś odbiorcą (nauczycielem)
     const filtered = allQs.filter(q => 
         q.fromUsername === myUsername || q.to.includes(myUsername)
     );
 
     res.json(filtered);
 });
-// --- ODPOWIEDŹ W WĄTKU ---
+
+// 3. Odpowiedź w istniejącym wątku
 app.post("/reply-question", auth, (req, res) => {
     const { code, questionId, text } = req.body;
     let sections = loadSections();
@@ -353,17 +349,14 @@ app.post("/reply-question", auth, (req, res) => {
 
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
 
-    // Szukamy konkretnego pytania (wątku)
     const question = (section.questions || []).find(q => q.id === questionId || q.id.toString() === questionId);
     if (!question) return res.status(404).json({ message: "Nie znaleziono wątku" });
 
     const users = loadUsers();
     const me = users.find(u => u.username === req.user.username);
 
-    // Upewniamy się, że tablica replies istnieje
     if (!question.replies) question.replies = [];
 
-    // Dodajemy nową odpowiedź
     question.replies.push({
         from: me.name || me.username,
         fromUsername: me.username,
@@ -374,5 +367,6 @@ app.post("/reply-question", auth, (req, res) => {
     saveSections(sections);
     res.json({ message: "Dodano odpowiedź!" });
 });
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Serwer działa na porcie " + PORT));
