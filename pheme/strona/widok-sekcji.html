@@ -168,7 +168,7 @@
                 // Sprawdzamy czy użytkownik jest nauczycielem
                 if (taSekcja.rola === "nauczyciel") {
                     dodajPrzyciskAdmina();
-                    pobierzCzlonkow(); // Pobieramy dane w tle
+                    pobierzCzlonkow(); 
                 }
             }
         } catch (e) { console.error(e); }
@@ -176,6 +176,9 @@
 
     function dodajPrzyciskAdmina() {
         const tabsContainer = document.getElementById('tabs-container');
+        // Zapobiegamy dublowaniu przycisku przy odświeżaniu skryptu
+        if (document.querySelector('.admin-btn')) return;
+
         const btn = document.createElement('button');
         btn.className = 'tab-btn admin-btn';
         btn.innerText = 'Lista członków';
@@ -196,7 +199,6 @@
             adminsList.innerHTML = "";
             usersList.innerHTML = "";
 
-            // Ta część idzie wewnątrz pętli members.forEach w widok-sekcji.html
             members.forEach(m => {
                 const doWyswietlenia = m.name && m.name.trim() !== "" ? m.name : m.username;
                 
@@ -204,7 +206,6 @@
                     const row = `<div class="user-row">🎓 <strong>${doWyswietlenia}</strong></div>`;
                     adminsList.insertAdjacentHTML('beforeend', row);
                 } else {
-                    // Dodajemy przycisk awansu obok ucznia
                     const row = `
                         <div class="user-row" style="display: flex; justify-content: space-between; align-items: center;">
                             <span>👤 ${doWyswietlenia}</span>
@@ -217,6 +218,37 @@
                 }
             });
         } catch (e) { console.error("Błąd pobierania listy osób"); }
+    }
+
+    // --- TA FUNKCJA BYŁA POTRZEBNA ---
+    async function awansujNaNaunczyciela(targetUsername) {
+        if (!confirm(`Czy na pewno chcesz nadać uprawnienia nauczyciela użytkownikowi ${targetUsername}?`)) return;
+
+        try {
+            const res = await fetch(`${API_URL}/promote-to-teacher`, {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token 
+                },
+                body: JSON.stringify({ 
+                    code: kod, 
+                    targetUsername: targetUsername 
+                })
+            });
+
+            const data = await res.json();
+            
+            if (res.ok) {
+                alert("Sukces: " + data.message);
+                pobierzCzlonkow(); // Odśwież listę bez przeładowania strony
+            } else {
+                alert("Błąd: " + data.message);
+            }
+        } catch (e) {
+            console.error("Błąd sieci:", e);
+            alert("Nie udało się połączyć z serwerem.");
+        }
     }
 
     function openTab(evt, tabName) {

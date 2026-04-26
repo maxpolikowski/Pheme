@@ -224,23 +224,26 @@ app.post("/promote-to-teacher", auth, (req, res) => {
     let sections = loadSections();
     const section = sections.find(s => s.code === code);
 
+    console.log(`Próba awansu: ${targetUsername} w sekcji ${code} przez ${req.user.username}`);
+
     if (!section) return res.status(404).json({ message: "Nie znaleziono sekcji" });
 
-    // Sprawdzamy, czy osoba wykonująca akcję jest nauczycielem w tej sekcji
+    // SPRAWDZENIE UPRAWNIEŃ - upewnij się, że pole w bazie to 'nauczyciel'
     const requester = section.members.find(m => m.username === req.user.username);
+    
     if (!requester || requester.role !== "nauczyciel") {
-        return res.status(403).json({ message: "Tylko nauczyciel może dodawać innych nauczycieli" });
+        console.log("Odmowa: Użytkownik nie jest nauczycielem w tej sekcji.");
+        return res.status(403).json({ message: "Tylko nauczyciel sekcji może to zrobić" });
     }
 
-    // Znajdujemy osobę, którą chcemy awansować
     const targetMember = section.members.find(m => m.username === targetUsername);
-    if (!targetMember) return res.status(404).json({ message: "Użytkownik nie należy do tej sekcji" });
+    if (!targetMember) return res.status(404).json({ message: "Użytkownik nie należy do sekcji" });
 
-    // Zmieniamy rolę
     targetMember.role = "nauczyciel";
     
     saveSections(sections);
-    res.json({ message: `Użytkownik ${targetUsername} został nauczycielem!` });
+    console.log(`Sukces: ${targetUsername} jest teraz nauczycielem.`);
+    res.json({ message: "Nadano uprawnienia nauczyciela!" });
 });
 app.post("/reset", auth, admin, (req, res) => {
     let users = loadUsers();
