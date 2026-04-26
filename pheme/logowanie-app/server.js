@@ -367,6 +367,45 @@ app.post("/reply-question", auth, (req, res) => {
     saveSections(sections);
     res.json({ message: "Dodano odpowiedź!" });
 });
+app.post("/remove-from-section", authenticateToken, async (req, res) => {
+    const { code, targetUsername } = req.body;
+    const adminUsername = req.user.username; // Osoba wykonująca akcję
 
+    try {
+        const db = await readDB();
+        const section = db.sections.find(s => s.kod === code);
+
+        if (!section) {
+            return res.status(404).json({ message: "Nie znaleziono sekcji." });
+        }
+
+        // 1. Sprawdzenie uprawnień: czy osoba usuwająca jest nauczycielem w tej sekcji
+        const adminInSection = section.members.find(m => m.username === adminUsername);
+        if (!adminInSection || adminInSection.role !== "nauczyciel") {
+            return res.status(403).json({ message: "Brak uprawnień do usuwania członków." });
+        }
+
+        // 2. Sprawdzenie czy użytkownik do usunięcia w ogóle jest w sekcji
+        const memberIndex = section.members.findIndex(m => m.username === targetUsername);
+        if (memberIndex === -1) {
+            return res.status(404).json({ message: "Użytkownik nie jest członkiem tej sekcji." });
+        }
+
+        // 3. Blokada: nauczyciel nie może usunąć samego siebie (opcjonalne, ale bezpieczne)
+        if (targetUsername === adminUsername) {
+            return res.status(400).json({ message: "Nie możesz usunąć samego siebie z sekcji." });
+        }
+
+        // 4. USUNIĘCIE: Wycinamy osobę z tablicy members
+        section.members.splice(memberIndex, 1);
+
+        await writeDB(db);
+        res.json({ message: "Użytkownik został pomyślnie usunięty." });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Błąd serwera." });
+    }
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Serwer działa na porcie " + PORT));
