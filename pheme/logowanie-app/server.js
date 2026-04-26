@@ -307,5 +307,55 @@ app.delete("/delete-note/:code/:noteId", auth, (req, res) => {
     saveSections(sections);
     res.json({ message: "Lekcja została usunięta" });
 });
+// --- ENDPOINTY FEEDBACKU ---
+
+// 1. Dodawanie feedbacku przez ucznia
+app.post("/add-feedback", auth, (req, res) => {
+    const { code, lessonName, message } = req.body;
+    let sections = loadSections();
+    const section = sections.find(s => s.code === code);
+
+    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+
+    // Inicjalizacja tablicy feedbacku, jeśli nie istnieje
+    if (!section.feedbacks) section.feedbacks = [];
+
+    // Pobieramy imię użytkownika (opcjonalnie)
+    const users = loadUsers();
+    const currentUser = users.find(u => u.username === req.user.username);
+    const authorName = currentUser && currentUser.name ? currentUser.name : req.user.username;
+
+    // Dodajemy nową wiadomość
+    section.feedbacks.push({
+        id: Date.now(),
+        lessonName,
+        message,
+        author: authorName,
+        username: req.user.username,
+        date: new Date().toLocaleString("pl-PL")
+    });
+
+    saveSections(sections);
+    res.json({ message: "Feedback został wysłany!" });
+});
+
+// 2. Pobieranie feedbacku danej sekcji (tylko dla nauczyciela tej sekcji lub admina)
+app.get("/section-feedback/:code", auth, (req, res) => {
+    const sections = loadSections();
+    const section = sections.find(s => s.code === req.params.code);
+
+    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+
+    // Sprawdzenie uprawnień: czy użytkownik jest nauczycielem w TEJ sekcji lub adminem
+    const member = section.members.find(m => m.username === req.user.username);
+    const isTeacher = member && member.role === "nauczyciel";
+    const isAdmin = req.user.role === "admin";
+
+    if (!isTeacher && !isAdmin) {
+        return res.status(403).json({ message: "Tylko nauczyciel może przeglądać feedback" });
+    }
+
+    res.json(section.feedbacks || []);
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Serwer Pheme działa na porcie " + PORT));

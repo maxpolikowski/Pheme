@@ -10,6 +10,7 @@
             --bg-gray: #f5f5f5;
             --dark-gray: #333333;
             --red-header: #ff3b3b;
+            --blue-feedback: #007bff;
         }
 
         body {
@@ -94,6 +95,14 @@
             border-radius: 0 10px 10px 0;
         }
 
+        .feedback-item {
+            border-left: 4px solid var(--blue-feedback);
+            background: #f0f7ff;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 0 10px 10px 0;
+        }
+
         .note-links a {
             display: inline-block;
             background: white;
@@ -127,16 +136,29 @@
             border-bottom: 1px solid #eee;
         }
 
-        .feedback-card {
-            background: #fff;
-            border: 1px solid #eee;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            border-left: 4px solid #007bff;
+        .back-link { margin-top: 20px; display: block; color: #888; text-decoration: none; text-align: center; }
+
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-family: inherit;
+            resize: vertical;
+            margin-top: 10px;
+            box-sizing: border-box;
         }
 
-        .back-link { margin-top: 20px; display: block; color: #888; text-decoration: none; text-align: center; }
+        .btn-send-fb {
+            margin-top: 10px;
+            background: var(--blue-feedback);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -174,20 +196,7 @@
 
         <div id="feedback" class="tab-content">
             <h2>Feedback do lekcji</h2>
-            
-            <div id="feedback-form-container" style="display:none; background: #f0f7ff; padding: 20px; border-radius: 15px; margin-bottom: 25px; border: 1px solid #cce5ff;">
-                <h3 style="margin-top:0">Wyślij opinię</h3>
-                <select id="feedback-lesson-select" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 8px;">
-                    <option value="">Wybierz lekcję...</option>
-                </select>
-                <textarea id="feedback-text" placeholder="Twoja opinia do tej lekcji..." style="width: 100%; padding: 10px; height: 80px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-family: inherit;"></textarea>
-                <button onclick="wyslijFeedback()" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">Wyślij wiadomość</button>
-            </div>
-
-            <div id="feedback-admin-list" style="display:none;">
-                <h3>Ostatnio napisane feedbacki</h3>
-                <div id="lista-odebranych-feedbackow">Ładowanie...</div>
-            </div>
+            <div id="feedback-container">Ładowanie lekcji do feedbacku...</div>
         </div>
 
         <div id="pytania" class="tab-content">
@@ -249,24 +258,15 @@
             });
             const notes = await res.json();
             const container = document.getElementById('lista-notatek');
-            const selectFeedback = document.getElementById('feedback-lesson-select');
             
             if (notes.length === 0) {
                 container.innerHTML = "<p>Brak dodanych notatek.</p>";
                 return;
             }
 
-            // Aktualizacja selecta w feedbacku
-            selectFeedback.innerHTML = '<option value="">Wybierz lekcję...</option>';
-            
             const czyNauczyciel = document.getElementById('btn-pokaz-form-notatki').style.display === 'block';
 
             container.innerHTML = notes.reverse().map(n => {
-                // Dodaj lekcję do selecta
-                const opt = document.createElement('option');
-                opt.value = n.lessonName; opt.innerText = n.lessonName;
-                selectFeedback.appendChild(opt);
-
                 const maDrugiLink = n.link2 && n.link2.trim() !== "";
                 const tekstLinku1 = maDrugiLink ? "🔗 Notatki 1" : "🔗 Notatki";
                 
@@ -303,77 +303,93 @@
             });
             if (res.ok) { 
                 document.getElementById('form-dodaj-notatke').style.display='none';
-                pobierzNotatki(); 
+                pobierzNotatki();
+                const taSekcjaRes = await fetch(`${API_URL}/moje-sekcje`, {headers: {"Authorization": "Bearer "+token}});
+                const sekcje = await taSekcjaRes.json();
+                const taSekcja = sekcje.find(s => s.kod === kod);
+                przygotujFeedback(taSekcja.rola); // Odśwież kafelki feedbacku
             }
         } catch (e) { alert("Błąd!"); }
     }
 
-    // --- LOGIKA FEEDBACKU ---
-    function przygotujFeedback(rola) {
+    async function usunNotatke(noteId) {
+        if(!confirm("Usunąć lekcję?")) return;
+        try {
+            await fetch(`${API_URL}/delete-note/${kod}/${noteId}`, {
+                method: "DELETE",
+                headers: { "Authorization": "Bearer " + token }
+            });
+            pobierzNotatki();
+        } catch (e) { alert("Błąd!"); }
+    }
+
+    // --- LOGIKA FEEDBACKU (Kafelki) ---
+    async function przygotujFeedback(rola) {
+        const container = document.getElementById('feedback-container');
+        
         if (rola === "nauczyciel") {
-            document.getElementById('feedback-admin-list').style.display = 'block';
-            pobierzWszystkieFeedbacki();
+            try {
+                const res = await fetch(`${API_URL}/section-feedback/${kod}`, {
+                    headers: { "Authorization": "Bearer " + token }
+                });
+                const feedbacks = await res.json();
+                
+                if (feedbacks.length === 0) {
+                    container.innerHTML = "<p>Brak nadesłanych opinii.</p>";
+                    return;
+                }
+
+                container.innerHTML = "<h3>Otrzymany Feedback:</h3>" + feedbacks.reverse().map(f => `
+                    <div class="feedback-item" style="background: white;">
+                        <small>Lekcja: <strong>${f.lessonName}</strong> | Od: ${f.author || 'Uczeń'}</small>
+                        <div style="margin-top:5px;">${f.message}</div>
+                    </div>
+                `).join('');
+            } catch (e) { container.innerHTML = "Błąd ładowania."; }
         } else {
-            document.getElementById('feedback-form-container').style.display = 'block';
+            // Widok Ucznia - Kafelki lekcji do ocenienia
+            try {
+                const res = await fetch(`${API_URL}/section-notes/${kod}`, {
+                    headers: { "Authorization": "Bearer " + token }
+                });
+                const notes = await res.json();
+
+                if (notes.length === 0) {
+                    container.innerHTML = "<p>Brak lekcji do skomentowania.</p>";
+                    return;
+                }
+
+                container.innerHTML = notes.reverse().map((n, index) => `
+                    <div class="feedback-item">
+                        <strong>${n.lessonName}</strong>
+                        <textarea id="fb-text-${index}" placeholder="Twoja opinia o tej lekcji..."></textarea>
+                        <button class="btn-send-fb" onclick="wyslijFeedbackZKafla('${n.lessonName}', ${index})">Wyślij opinię</button>
+                    </div>
+                `).join('');
+            } catch (e) { container.innerHTML = "Błąd ładowania lekcji."; }
         }
     }
 
-    async function wyslijFeedback() {
-        const lessonSelect = document.getElementById('feedback-lesson-select');
-        const feedbackText = document.getElementById('feedback-text');
-        
-        const lessonName = lessonSelect.value;
-        const message = feedbackText.value.trim();
+    async function wyslijFeedbackZKafla(lessonName, index) {
+        const textarea = document.getElementById(`fb-text-${index}`);
+        const message = textarea.value.trim();
 
-        if (!lessonName || !message) {
-            return alert("Proszę wybrać lekcję i wpisać treść wiadomości!");
-        }
+        if (!message) return alert("Wpisz treść opinii!");
 
         try {
-            console.log("Wysyłanie feedbacku dla sekcji:", kod); // Debugowanie w konsoli (F12)
-
             const res = await fetch(`${API_URL}/add-feedback`, {
                 method: "POST",
-                headers: { 
-                    "Content-Type": "application/json", 
-                    "Authorization": "Bearer " + token 
-                },
-                body: JSON.stringify({ 
-                    code: kod,          // Upewnij się, że to zmienna 'kod' z góry skryptu
-                    lessonName: lessonName, 
-                    message: message 
-                })
+                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+                body: JSON.stringify({ code: kod, lessonName, message })
             });
 
             if (res.ok) {
-                alert("✅ Wiadomość została wysłana do nauczyciela!");
-                feedbackText.value = ""; // Czyścimy pole tekstowe
-                lessonSelect.selectedIndex = 0; // Resetujemy listę lekcji
+                alert("✅ Opinia wysłana!");
+                textarea.value = "";
             } else {
-                const err = await res.json();
-                alert("Błąd serwera: " + (err.message || "Nie udało się wysłać wiadomości."));
+                alert("Błąd wysyłania.");
             }
-        } catch (e) {
-            console.error("Błąd połączenia:", e);
-            alert("Błąd połączenia z serwerem. Sprawdź konsolę (F12).");
-        }
-    }
-
-    async function pobierzWszystkieFeedbacki() {
-        try {
-            const res = await fetch(`${API_URL}/section-feedback/${kod}`, {
-                headers: { "Authorization": "Bearer " + token }
-            });
-            const feedbacks = await res.json();
-            const container = document.getElementById('lista-odebranych-feedbackow');
-            
-            container.innerHTML = feedbacks.reverse().map(f => `
-                <div class="feedback-card">
-                    <small>Lekcja: <strong>${f.lessonName}</strong> | Od: ${f.author || 'Uczeń'}</small>
-                    <div style="margin-top:5px;">${f.message}</div>
-                </div>
-            `).join('') || "<p>Brak feedbacku.</p>";
-        } catch (e) { console.error(e); }
+        } catch (e) { alert("Błąd połączenia."); }
     }
 
     // --- CZŁONKOWIE I TABY ---
@@ -389,67 +405,41 @@
 
     async function pobierzCzlonkow() {
         try {
-            // 1. Najpierw sprawdzamy Twój profil, żeby wiedzieć czy jesteś Adminem systemu
-            const profilRes = await fetch(`${API_URL}/profil`, {
-                headers: { "Authorization": "Bearer " + token }
-            });
+            const profilRes = await fetch(`${API_URL}/profil`, { headers: { "Authorization": "Bearer " + token } });
             const profil = await profilRes.json();
             const czyJestemAdminemSystemu = (profil.role === "admin");
 
-            // 2. Pobieramy listę członków sekcji
-            const res = await fetch(`${API_URL}/section-members/${kod}`, {
-                headers: { "Authorization": "Bearer " + token }
-            });
+            const res = await fetch(`${API_URL}/section-members/${kod}`, { headers: { "Authorization": "Bearer " + token } });
             const members = await res.json();
 
-            const adminsList = document.getElementById('admins-list');
-            const usersList = document.getElementById('users-list');
-
-            adminsList.innerHTML = "";
-            usersList.innerHTML = "";
+            const aL = document.getElementById('admins-list');
+            const uL = document.getElementById('users-list');
+            aL.innerHTML = ""; uL.innerHTML = "";
 
             members.forEach(m => {
-                const doWyswietlenia = m.name && m.name.trim() !== "" ? m.name : m.username;
-                
+                const name = m.name && m.name.trim() !== "" ? m.name : m.username;
                 if (m.role === "nauczyciel" || m.role === "admin") {
-                    adminsList.insertAdjacentHTML('beforeend', `<div class="user-row"><strong>${doWyswietlenia}</strong></div>`);
+                    aL.insertAdjacentHTML('beforeend', `<div class="user-row"><strong>${name}</strong></div>`);
                 } else {
-                    // Jeśli jesteś adminem systemu, dodajemy przycisk awansu
-                    let buttonHtml = czyJestemAdminemSystemu 
-                        ? `<button onclick="awansujNaNaunczyciela('${m.username}')" style="padding: 2px 8px; font-size: 0.7rem; background: #ff3b3b; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">Awansuj na nauczyciela / tylko admini</button>` 
+                    let btn = czyJestemAdminemSystemu 
+                        ? `<button onclick="awansujNaNaunczyciela('${m.username}')" style="padding: 2px 8px; font-size: 0.7rem; background: #ff3b3b; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">Daj Nauczyciela</button>` 
                         : "";
-                    
-                    usersList.insertAdjacentHTML('beforeend', `
-                        <div class="user-row" style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>${doWyswietlenia}</span>
-                            ${buttonHtml}
-                        </div>
-                    `);
+                    uL.insertAdjacentHTML('beforeend', `<div class="user-row" style="display: flex; justify-content: space-between; align-items: center;"><span>${name}</span>${btn}</div>`);
                 }
             });
-        } catch (e) { console.error("Błąd listy osób", e); }
+        } catch (e) { console.error(e); }
     }
 
     async function awansujNaNaunczyciela(targetUsername) {
-        if (!confirm(`Czy na pewno chcesz nadać uprawnienia nauczyciela użytkownikowi ${targetUsername}?`)) return;
+        if (!confirm(`Nadać uprawnienia nauczyciela dla ${targetUsername}?`)) return;
         try {
             const res = await fetch(`${API_URL}/promote-to-teacher`, {
                 method: "POST",
-                headers: { 
-                    "Content-Type": "application/json", 
-                    "Authorization": "Bearer " + token 
-                },
-                body: JSON.stringify({ code: kod, targetUsername: targetUsername })
+                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+                body: JSON.stringify({ code: kod, targetUsername })
             });
-            
-            if (res.ok) { 
-                alert("Użytkownik został nauczycielem w tej sekcji!"); 
-                pobierzCzlonkow(); 
-            } else {
-                const err = await res.json();
-                alert("Błąd: " + err.message);
-            }
-        } catch (e) { alert("Błąd połączenia!"); }
+            if (res.ok) { alert("Sukces!"); pobierzCzlonkow(); }
+        } catch (e) { alert("Błąd!"); }
     }
 
     function openTab(evt, tabName) {
