@@ -187,38 +187,53 @@
     }
 
     async function pobierzCzlonkow() {
-        try {
-            const res = await fetch(`${API_URL}/section-members/${kod}`, {
-                headers: { "Authorization": "Bearer " + token }
-            });
-            const members = await res.json();
+    try {
+        // 1. Najpierw sprawdźmy, kim jest zalogowany użytkownik (czy to Główny Admin)
+        const profilRes = await fetch(`${API_URL}/profil`, {
+            headers: { "Authorization": "Bearer " + token }
+        });
+        const profil = await profilRes.json();
+        const czyJestemAdminemSystemu = (profil.role === "admin");
 
-            const adminsList = document.getElementById('admins-list');
-            const usersList = document.getElementById('users-list');
+        // 2. Pobierz członków sekcji
+        const res = await fetch(`${API_URL}/section-members/${kod}`, {
+            headers: { "Authorization": "Bearer " + token }
+        });
+        const members = await res.json();
 
-            adminsList.innerHTML = "";
-            usersList.innerHTML = "";
+        const adminsList = document.getElementById('admins-list');
+        const usersList = document.getElementById('users-list');
 
-            members.forEach(m => {
-                const doWyswietlenia = m.name && m.name.trim() !== "" ? m.name : m.username;
-                
-                if (m.role === "nauczyciel" || m.role === "admin") {
-                    const row = `<div class="user-row">🎓 <strong>${doWyswietlenia}</strong></div>`;
-                    adminsList.insertAdjacentHTML('beforeend', row);
-                } else {
-                    const row = `
-                        <div class="user-row" style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>👤 ${doWyswietlenia}</span>
-                            <button class="btn-small" onclick="awansujNaNaunczyciela('${m.username}')" 
-                                    style="padding: 2px 8px; font-size: 0.7rem; background: #333; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                                Daj Nauczyciela
-                            </button>
-                        </div>`;
-                    usersList.insertAdjacentHTML('beforeend', row);
+        adminsList.innerHTML = "";
+        usersList.innerHTML = "";
+
+        members.forEach(m => {
+            const doWyswietlenia = m.name && m.name.trim() !== "" ? m.name : m.username;
+            
+            if (m.role === "nauczyciel" || m.role === "admin") {
+                const row = `<div class="user-row">🎓 <strong>${doWyswietlenia}</strong></div>`;
+                adminsList.insertAdjacentHTML('beforeend', row);
+            } else {
+                // PRZYCISK POKAZUJE SIĘ TYLKO ADMINOWI SYSTEMU
+                let buttonHtml = "";
+                if (czyJestemAdminemSystemu) {
+                    buttonHtml = `
+                        <button class="btn-small" onclick="awansujNaNaunczyciela('${m.username}')" 
+                                style="padding: 2px 8px; font-size: 0.7rem; background: #ff3b3b; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                            Daj Nauczyciela (Admin Only)
+                        </button>`;
                 }
-            });
-        } catch (e) { console.error("Błąd pobierania listy osób"); }
-    }
+
+                const row = `
+                    <div class="user-row" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>👤 ${doWyswietlenia}</span>
+                        ${buttonHtml}
+                    </div>`;
+                usersList.insertAdjacentHTML('beforeend', row);
+            }
+        });
+    } catch (e) { console.error("Błąd pobierania listy osób", e); }
+}
 
     // --- TA FUNKCJA BYŁA POTRZEBNA ---
     async function awansujNaNaunczyciela(targetUsername) {
