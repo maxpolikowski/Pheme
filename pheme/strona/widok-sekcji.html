@@ -245,7 +245,7 @@
         } catch (e) { console.error(e); }
     }
 
-    async function pobierzNotatki() {
+   async function pobierzNotatki() {
         try {
             const res = await fetch(`${API_URL}/section-notes/${kod}`, {
                 headers: { "Authorization": "Bearer " + token }
@@ -261,10 +261,12 @@
             const czyNauczyciel = document.getElementById('btn-pokaz-form-notatki').style.display === 'block';
 
             container.innerHTML = notes.reverse().map(n => {
-                // Logika nazewnictwa linków:
-                // Jeśli n.link2 istnieje i nie jest pustym ciągiem znaków
-                const tekstLinku1 = (n.link2 && n.link2.trim() !== "") ? "🔗 Notatki 1" : "🔗 Notatki";
+                // Sprawdzamy, czy link2 w ogóle istnieje i nie jest pustym tekstem
+                const maDrugiLink = n.link2 && n.link2.trim() !== "";
                 
+                // Jeśli ma drugi link, nazwij pierwszy "Notatki 1", w przeciwnym razie po prostu "Notatki"
+                const tekstLinku1 = maDrugiLink ? "📄 Notatki 1" : "📄 Notatki";
+
                 return `
                     <div class="note-item">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -281,7 +283,7 @@
                         </div>
                         <div class="note-links">
                             <a href="${n.link1}" target="_blank">${tekstLinku1}</a>
-                            ${(n.link2 && n.link2.trim() !== "") ? `<a href="${n.link2}" target="_blank">🔗 Notatki 2</a>` : ''}
+                            ${maDrugiLink ? `<a href="${n.link2}" target="_blank">🔗 Notatki 2</a>` : ''}
                         </div>
                     </div>
                 `;
