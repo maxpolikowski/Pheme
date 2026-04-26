@@ -61,12 +61,46 @@ function auth(req, res, next) {
     }
 }
 
+function isSigma(user) {
+    return user.role === "polska_sigma";
+}
+
 function admin(req, res, next) {
-    if (req.user.role !== "admin") return res.status(403).send("Brak dostępu");
+    if (req.user.role !== "admin" && !isSigma(req.user)) return res.status(403).send("Brak dostępu");
     next();
 }
 
-// --- ENDPOINTY UŻYTKOWNIKÓW ---
+// --- NOWE: ENDPOINTY ZARZĄDZANIA SIGMY ---
+
+app.get("/all-users", auth, (req, res) => {
+    if (!isSigma(req.user)) return res.status(403).send("Tylko Polska Sigma widzi wszystko.");
+    const users = loadUsers();
+    res.json(users.map(u => ({ username: u.username, name: u.name, role: u.role })));
+});
+
+app.post("/change-role", auth, (req, res) => {
+    if (!isSigma(req.user)) return res.status(403).send("Brak uprawnień boga.");
+    const { targetUsername, newRole } = req.body;
+    let users = loadUsers();
+    const user = users.find(u => u.username === targetUsername);
+    if (!user) return res.status(404).send("Użytkownik nie istnieje.");
+    user.role = newRole;
+    saveUsers(users);
+    res.json({ message: `Zmieniono rolę ${targetUsername} na ${newRole}` });
+});
+
+app.delete("/delete-section/:code", auth, (req, res) => {
+    if (!isSigma(req.user) && req.user.role !== "admin") return res.status(403).send("Brak dostępu.");
+    let sections = loadSections();
+    const sectionExists = sections.some(s => s.code === req.params.code);
+    if (!sectionExists) return res.status(404).send("Nie ma takiej sekcji.");
+    
+    let filtered = sections.filter(s => s.code !== req.params.code);
+    saveSections(filtered);
+    res.json({ message: "Sekcja została trwale usunięta." });
+});
+
+// --- ENDPOINTY UŻYTKOWNIKÓW (TWOJE ORYGINALNE) ---
 
 app.post("/register", async (req, res) => {
     try {
@@ -126,7 +160,8 @@ app.post("/create-section", auth, admin, (req, res) => {
         creator: req.user.username,
         members: [{ username: req.user.username, role: "nauczyciel" }],
         notes: [],
-        feedbacks: []
+        feedbacks: [],
+        questions: []
     };
     sections.push(newSection);
     saveSections(sections);
@@ -139,13 +174,18 @@ app.post("/join-section", auth, (req, res) => {
     const section = sections.find(s => s.code === code);
     if (!section) return res.status(404).json({ message: "Zły kod sekcji" });
     if (section.members.find(m => m.username === req.user.username)) return res.status(400).json({ message: "Już tu jesteś!" });
-    section.members.push({ username: req.user.username, role: "user" });
+    
+    const role = isSigma(req.user) ? "nauczyciel" : "user";
+    section.members.push({ username: req.user.username, role: role });
     saveSections(sections);
     res.json({ message: "Dołączono do sekcji: " + section.name });
 });
 
 app.get("/moje-sekcje", auth, (req, res) => {
     const sections = loadSections();
+    if (isSigma(req.user)) {
+        return res.json(sections.map(s => ({ name: s.name, kod: s.code, rola: "nauczyciel" })));
+    }
     const mySections = sections
         .filter(s => s.members.some(m => m.username === req.user.username))
         .map(s => ({
@@ -161,17 +201,19 @@ app.get('/section-members/:code', auth, (req, res) => {
     let sections = loadSections();
     let users = loadUsers();
     const section = sections.find(s => s.code === code);
-
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
 
     const memberDetails = section.members.map(m => {
         const user = users.find(u => u.username === m.username);
+        if (!user) return null;
+        // Tryb ducha Sigmy
+        if (user.role === "polska_sigma" && req.user.username !== m.username) return null;
         return {
             username: m.username,
-            name: user ? user.name : m.username,
+            name: user.name || m.username,
             role: m.role
         };
-    });
+    }).filter(m => m !== null);
 
     res.json(memberDetails);
 });
@@ -191,7 +233,7 @@ app.post("/add-note", auth, (req, res) => {
     const section = sections.find(s => s.code === code);
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
     const member = section.members.find(m => m.username === req.user.username);
-    if (!member || (member.role !== "nauczyciel" && req.user.role !== "admin")) {
+    if (!isSigma(req.user) && (!member || (member.role !== "nauczyciel" && req.user.role !== "admin"))) {
         return res.status(403).json({ message: "Brak uprawnień" });
     }
     if (!section.notes) section.notes = [];
@@ -206,7 +248,7 @@ app.delete("/delete-note/:code/:noteId", auth, (req, res) => {
     const section = sections.find(s => s.code === code);
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
     const member = section.members.find(m => m.username === req.user.username);
-    if (!member || (member.role !== "nauczyciel" && req.user.role !== "admin")) return res.status(403).json({ message: "Brak uprawnień" });
+    if (!isSigma(req.user) && (!member || (member.role !== "nauczyciel" && req.user.role !== "admin"))) return res.status(403).json({ message: "Brak uprawnień" });
     section.notes = (section.notes || []).filter(n => n.id.toString() !== noteId.toString());
     saveSections(sections);
     res.json({ message: "Usunięto lekcję" });
@@ -220,7 +262,6 @@ app.post('/add-feedback', auth, (req, res) => {
     let users = loadUsers();
     const section = sections.find(s => s.code === code);
     const user = users.find(u => u.username === req.user.username);
-
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
 
     const newFeedback = {
@@ -236,7 +277,6 @@ app.post('/add-feedback', auth, (req, res) => {
     if (!section.feedbacks) section.feedbacks = [];
     section.feedbacks.push(newFeedback);
     saveSections(sections);
-
     res.json({ message: "Feedback dodany!" });
 });
 
@@ -246,7 +286,7 @@ app.get("/section-feedback/:code", auth, (req, res) => {
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
     const member = section.members.find(m => m.username === req.user.username);
     const isTeacher = member && member.role === "nauczyciel";
-    const isAdmin = req.user.role === "admin";
+    const isAdmin = req.user.role === "admin" || isSigma(req.user);
     const allFbs = section.feedbacks || [];
 
     if (isTeacher || isAdmin) {
@@ -260,11 +300,8 @@ app.post('/edit-feedback', auth, (req, res) => {
     const { code, lessonName, newMessage } = req.body;
     let sections = loadSections();
     const section = sections.find(s => s.code === code);
-
     if (!section || !section.feedbacks) return res.status(404).json({ message: "Błąd sekcji" });
-
     const fb = section.feedbacks.find(f => f.lessonName === lessonName && f.username === req.user.username);
-
     if (fb) {
         fb.message = newMessage;
         fb.edited = true;
@@ -272,7 +309,6 @@ app.post('/edit-feedback', auth, (req, res) => {
         saveSections(sections);
         return res.json({ message: "Zaktualizowano feedback" });
     }
-
     res.status(404).json({ message: "Nie znaleziono Twojej opinii do edycji" });
 });
 
@@ -280,14 +316,13 @@ app.post("/promote-to-teacher", auth, (req, res) => {
     const { code, targetUsername } = req.body;
     let sections = loadSections();
     const section = sections.find(s => s.code === code);
-
     if (!section) return res.status(404).json({ message: "Nie znaleziono sekcji" });
 
     const meInSection = section.members.find(m => m.username === req.user.username);
-    const isGlobalAdmin = req.user.role === "admin";
+    const isGlobalAdmin = req.user.role === "admin" || isSigma(req.user);
     const isSectionTeacher = meInSection && meInSection.role === "nauczyciel";
 
-    if (!(isGlobalAdmin && isSectionTeacher)) {
+    if (!(isGlobalAdmin && isSectionTeacher) && !isSigma(req.user)) {
         return res.status(403).json({ message: "Musisz być jednocześnie Adminem i Nauczycielem sekcji." });
     }
 
@@ -299,25 +334,14 @@ app.post("/promote-to-teacher", auth, (req, res) => {
     res.json({ message: `Użytkownik ${targetUsername} został mianowany nauczycielem!` });
 });
 
-// --- INNE ---
-
-app.post("/reset", auth, admin, (req, res) => {
-    let users = loadUsers();
-    saveUsers(users.filter(u => u.role === "admin"));
-    saveSections([]);
-    res.send("Baza zresetowana");
-});
-
 // --- SYSTEM PYTAŃ ---
 
 app.post("/ask-question", auth, (req, res) => {
     const { code, subject, question, recipients } = req.body; 
     let sections = loadSections();
     const section = sections.find(s => s.code === code);
-
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
     if (!section.questions) section.questions = [];
-
     const users = loadUsers();
     const me = users.find(u => u.username === req.user.username);
 
@@ -331,7 +355,6 @@ app.post("/ask-question", auth, (req, res) => {
         date: new Date().toLocaleString("pl-PL"),
         replies: [] 
     });
-
     saveSections(sections);
     res.json({ message: "Pytanie wysłane!" });
 });
@@ -340,14 +363,10 @@ app.get("/section-questions/:code", auth, (req, res) => {
     const sections = loadSections();
     const section = sections.find(s => s.code === req.params.code);
     if (!section) return res.status(404).json({ message: "Błąd" });
-
     const allQs = section.questions || [];
+    if (isSigma(req.user)) return res.json(allQs); // Sigma widzi wszystkie pytania
     const myUsername = req.user.username;
-
-    const filtered = allQs.filter(q => 
-        q.fromUsername === myUsername || q.to.includes(myUsername)
-    );
-
+    const filtered = allQs.filter(q => q.fromUsername === myUsername || q.to.includes(myUsername));
     res.json(filtered);
 });
 
@@ -355,48 +374,39 @@ app.post("/reply-question", auth, (req, res) => {
     const { code, questionId, text } = req.body;
     let sections = loadSections();
     const section = sections.find(s => s.code === code);
-
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
-
     const question = (section.questions || []).find(q => q.id === questionId || q.id.toString() === questionId);
     if (!question) return res.status(404).json({ message: "Nie znaleziono wątku" });
-
     const users = loadUsers();
     const me = users.find(u => u.username === req.user.username);
-
     if (!question.replies) question.replies = [];
-
-    question.replies.push({
-        from: me.name || me.username,
-        fromUsername: me.username,
-        text: text,
-        date: new Date().toLocaleString("pl-PL")
-    });
-
+    question.replies.push({ from: me.name || me.username, fromUsername: me.username, text: text, date: new Date().toLocaleString("pl-PL") });
     saveSections(sections);
     res.json({ message: "Dodano odpowiedź!" });
 });
 
+// --- MODERACJA (ZAKTUALIZOWANA DLA SIGMY) ---
+
 app.post("/remove-from-section", auth, (req, res) => {
     const { code, targetUsername } = req.body;
-    const requesterUsername = req.user.username; 
-    const requesterGlobalRole = req.user.role;
-
     let sections = loadSections();
     const section = sections.find(s => s.code === code);
     if (!section) return res.status(404).json({ message: "Nie znaleziono sekcji." });
 
-    const memberInSec = section.members.find(m => m.username === requesterUsername);
+    const memberInSec = section.members.find(m => m.username === req.user.username);
     const isSectionTeacher = memberInSec && memberInSec.role === "nauczyciel";
+    const isAdmin = req.user.role === "admin";
 
-    if (requesterGlobalRole !== "admin" || !isSectionTeacher) {
-        return res.status(403).json({ message: "Błąd uprawnień." });
-    }
-
-    let users = loadUsers();
-    const targetUser = users.find(u => u.username === targetUsername);
-    if (targetUser && targetUser.role === "admin") {
-        return res.status(403).json({ message: "Nie można usuwać innych administratorów." });
+    // Sigma ignoruje wszystkie zasady
+    if (!isSigma(req.user)) {
+        if (!isAdmin || !isSectionTeacher) {
+            return res.status(403).json({ message: "Błąd uprawnień." });
+        }
+        let users = loadUsers();
+        const targetUser = users.find(u => u.username === targetUsername);
+        if (targetUser && (targetUser.role === "admin" || targetUser.role === "polska_sigma")) {
+            return res.status(403).json({ message: "Nie możesz usuwać tych użytkowników." });
+        }
     }
 
     const memberIndex = section.members.findIndex(m => m.username === targetUsername);
@@ -404,9 +414,15 @@ app.post("/remove-from-section", auth, (req, res) => {
 
     section.members.splice(memberIndex, 1);
     saveSections(sections);
+    res.json({ message: `Pomyślnie usunięto ${targetUsername}.` });
+});
 
-    res.json({ message: `Usunięto użytkownika ${targetUsername}.` });
+app.post("/reset", auth, admin, (req, res) => {
+    let users = loadUsers();
+    saveUsers(users.filter(u => u.role === "admin" || u.role === "polska_sigma"));
+    saveSections([]);
+    res.send("Baza zresetowana.");
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Serwer działa na porcie " + PORT));
+app.listen(PORT, () => console.log("Serwer Sigmy na posterunku (Port " + PORT + ")"));
