@@ -367,13 +367,13 @@ app.post("/reply-question", auth, (req, res) => {
     saveSections(sections);
     res.json({ message: "Dodano odpowiedź!" });
 });
-app.post("/remove-from-section", authenticateToken, async (req, res) => {
+app.post("/remove-from-section", auth, async (req, res) => {
     const { code, targetUsername } = req.body;
-    const adminUsername = req.user.username; // Osoba wykonująca akcję
+    const adminUsername = req.user.username; // Osoba wykonująca akcję (z tokena)
 
     try {
-        const db = await readDB();
-        const section = db.sections.find(s => s.kod === code);
+        let sections = loadSections();
+        const section = sections.find(s => s.code === code);
 
         if (!section) {
             return res.status(404).json({ message: "Nie znaleziono sekcji." });
@@ -381,6 +381,10 @@ app.post("/remove-from-section", authenticateToken, async (req, res) => {
 
         // 1. Sprawdzenie uprawnień: czy osoba usuwająca jest nauczycielem w tej sekcji
         const adminInSection = section.members.find(m => m.username === adminUsername);
+        
+        // Sprawdzamy czy jest nauczycielem w sekcji (rola "nauczyciel") 
+        // Twoje endpointy wymagają też często bycia adminem globalnym, 
+        // ale tutaj trzymamy się zasady: nauczyciel sekcji może usuwać.
         if (!adminInSection || adminInSection.role !== "nauczyciel") {
             return res.status(403).json({ message: "Brak uprawnień do usuwania członków." });
         }
@@ -391,7 +395,7 @@ app.post("/remove-from-section", authenticateToken, async (req, res) => {
             return res.status(404).json({ message: "Użytkownik nie jest członkiem tej sekcji." });
         }
 
-        // 3. Blokada: nauczyciel nie może usunąć samego siebie (opcjonalne, ale bezpieczne)
+        // 3. Blokada: nauczyciel nie może usunąć samego siebie
         if (targetUsername === adminUsername) {
             return res.status(400).json({ message: "Nie możesz usunąć samego siebie z sekcji." });
         }
@@ -399,7 +403,7 @@ app.post("/remove-from-section", authenticateToken, async (req, res) => {
         // 4. USUNIĘCIE: Wycinamy osobę z tablicy members
         section.members.splice(memberIndex, 1);
 
-        await writeDB(db);
+        saveSections(sections);
         res.json({ message: "Użytkownik został pomyślnie usunięty." });
 
     } catch (error) {
