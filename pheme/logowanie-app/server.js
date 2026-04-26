@@ -369,7 +369,8 @@ app.post("/reply-question", auth, (req, res) => {
 });
 app.post("/remove-from-section", auth, async (req, res) => {
     const { code, targetUsername } = req.body;
-    const adminUsername = req.user.username; // Osoba wykonująca akcję (z tokena)
+    const requesterUsername = req.user.username; // Osoba wykonująca akcję
+    const requesterGlobalRole = req.user.role;   // Rola z tokena (np. "admin")
 
     try {
         let sections = loadSections();
@@ -379,35 +380,37 @@ app.post("/remove-from-section", auth, async (req, res) => {
             return res.status(404).json({ message: "Nie znaleziono sekcji." });
         }
 
-        // 1. Sprawdzenie uprawnień: czy osoba usuwająca jest nauczycielem w tej sekcji
-        const adminInSection = section.members.find(m => m.username === adminUsername);
+        // Pobieramy dane o osobie wykonującej akcję wewnątrz tej sekcji
+        const memberInSec = section.members.find(m => m.username === requesterUsername);
         
-        // Sprawdzamy czy jest nauczycielem w sekcji (rola "nauczyciel") 
-        // Twoje endpointy wymagają też często bycia adminem globalnym, 
-        // ale tutaj trzymamy się zasady: nauczyciel sekcji może usuwać.
-        if (!adminInSection || adminInSection.role !== "nauczyciel") {
-            return res.status(403).json({ message: "Brak uprawnień do usuwania członków." });
+        // --- LOGIKA UPRAWNIEŃ ---
+        // Pozwól, jeśli: jest Adminem Globalnym LUB jest Nauczycielem w tej sekcji
+        const isGlobalAdmin = requesterGlobalRole === "admin";
+        const isSectionTeacher = memberInSec && memberInSec.role === "nauczyciel";
+
+        if (!isGlobalAdmin && !isSectionTeacher) {
+            return res.status(403).json({ message: "Brak uprawnień. Musisz być adminem lub nauczycielem sekcji." });
         }
 
-        // 2. Sprawdzenie czy użytkownik do usunięcia w ogóle jest w sekcji
+        // Sprawdzenie czy cel (użytkownik do usunięcia) istnieje w sekcji
         const memberIndex = section.members.findIndex(m => m.username === targetUsername);
         if (memberIndex === -1) {
-            return res.status(404).json({ message: "Użytkownik nie jest członkiem tej sekcji." });
+            return res.status(404).json({ message: "Ten użytkownik nie należy do tej sekcji." });
         }
 
-        // 3. Blokada: nauczyciel nie może usunąć samego siebie
-        if (targetUsername === adminUsername) {
-            return res.status(400).json({ message: "Nie możesz usunąć samego siebie z sekcji." });
+        // Blokada usunięcia samego siebie
+        if (targetUsername === requesterUsername) {
+            return res.status(400).json({ message: "Nie możesz usunąć samego siebie." });
         }
 
-        // 4. USUNIĘCIE: Wycinamy osobę z tablicy members
+        // USUNIĘCIE
         section.members.splice(memberIndex, 1);
 
         saveSections(sections);
-        res.json({ message: "Użytkownik został pomyślnie usunięty." });
+        res.json({ message: `Użytkownik ${targetUsername} został usunięty z sekcji.` });
 
     } catch (error) {
-        console.error(error);
+        console.error("Błąd podczas usuwania:", error);
         res.status(500).json({ message: "Błąd serwera." });
     }
 });
