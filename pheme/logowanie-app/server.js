@@ -262,7 +262,30 @@ app.post("/edit-feedback", auth, (req, res) => {
     saveSections(sections);
     res.json({ message: "Zaktualizowano!" });
 });
+app.post("/promote-to-teacher", auth, (req, res) => {
+    const { code, targetUsername } = req.body;
+    let sections = loadSections();
+    const section = sections.find(s => s.code === code);
 
+    if (!section) return res.status(404).json({ message: "Nie znaleziono sekcji" });
+
+    // Sprawdzenie: Czy osoba wykonująca akcję ma prawo awansować?
+    const me = section.members.find(m => m.username === req.user.username);
+    const isTeacher = me && me.role === "nauczyciel";
+    const isSystemAdmin = req.user.role === "admin";
+
+    if (!isTeacher && !isSystemAdmin) {
+        return res.status(403).json({ message: "Brak uprawnień do mianowania nauczycieli" });
+    }
+
+    const targetMember = section.members.find(m => m.username === targetUsername);
+    if (!targetMember) return res.status(404).json({ message: "Użytkownik nie należy do tej sekcji" });
+
+    targetMember.role = "nauczyciel";
+    
+    saveSections(sections);
+    res.json({ message: `Użytkownik ${targetUsername} został nauczycielem!` });
+});
 // --- INNE ---
 
 app.post("/reset", auth, admin, (req, res) => {

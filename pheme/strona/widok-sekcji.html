@@ -481,16 +481,28 @@ async function obsluzFeedback(lessonName, index, czyEdycja) {
     }
 
     async function awansujNaNaunczyciela(targetUsername) {
-        if (!confirm(`Nadać uprawnienia nauczyciela dla ${targetUsername}?`)) return;
-        try {
-            const res = await fetch(`${API_URL}/promote-to-teacher`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-                body: JSON.stringify({ code: kod, targetUsername })
-            });
-            if (res.ok) { alert("Sukces!"); pobierzCzlonkow(); }
-        } catch (e) { alert("Błąd!"); }
+    if (!confirm(`Nadać uprawnienia nauczyciela dla ${targetUsername}?`)) return;
+    try {
+        const res = await fetch(`${API_URL}/promote-to-teacher`, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json", 
+                "Authorization": "Bearer " + token 
+            },
+            body: JSON.stringify({ code: kod, targetUsername: targetUsername }) // upewnij się, że 'kod' jest zdefiniowany globalnie
+        });
+
+        if (res.ok) { 
+            alert("✅ Sukces! Użytkownik jest teraz nauczycielem."); 
+            pobierzCzlonkow(); 
+        } else {
+            const err = await res.json();
+            alert("Błąd: " + err.message);
+        }
+    } catch (e) { 
+        alert("Błąd połączenia z serwerem."); 
     }
+}
 
     function openTab(evt, tabName) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
