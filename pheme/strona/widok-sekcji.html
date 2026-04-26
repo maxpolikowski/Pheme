@@ -319,18 +319,44 @@
     }
 
     async function wyslijFeedback() {
-        const lessonName = document.getElementById('feedback-lesson-select').value;
-        const message = document.getElementById('feedback-text').value;
-        if (!lessonName || !message) return alert("Wybierz lekcję i wpisz treść!");
+        const lessonSelect = document.getElementById('feedback-lesson-select');
+        const feedbackText = document.getElementById('feedback-text');
+        
+        const lessonName = lessonSelect.value;
+        const message = feedbackText.value.trim();
+
+        if (!lessonName || !message) {
+            return alert("Proszę wybrać lekcję i wpisać treść wiadomości!");
+        }
 
         try {
+            console.log("Wysyłanie feedbacku dla sekcji:", kod); // Debugowanie w konsoli (F12)
+
             const res = await fetch(`${API_URL}/add-feedback`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-                body: JSON.stringify({ code: kod, lessonName, message })
+                headers: { 
+                    "Content-Type": "application/json", 
+                    "Authorization": "Bearer " + token 
+                },
+                body: JSON.stringify({ 
+                    code: kod,          // Upewnij się, że to zmienna 'kod' z góry skryptu
+                    lessonName: lessonName, 
+                    message: message 
+                })
             });
-            if (res.ok) { alert("Wysłano!"); document.getElementById('feedback-text').value=""; }
-        } catch (e) { alert("Błąd połączenia"); }
+
+            if (res.ok) {
+                alert("✅ Wiadomość została wysłana do nauczyciela!");
+                feedbackText.value = ""; // Czyścimy pole tekstowe
+                lessonSelect.selectedIndex = 0; // Resetujemy listę lekcji
+            } else {
+                const err = await res.json();
+                alert("Błąd serwera: " + (err.message || "Nie udało się wysłać wiadomości."));
+            }
+        } catch (e) {
+            console.error("Błąd połączenia:", e);
+            alert("Błąd połączenia z serwerem. Sprawdź konsolę (F12).");
+        }
     }
 
     async function pobierzWszystkieFeedbacki() {
