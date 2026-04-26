@@ -194,7 +194,31 @@ app.get("/moje-sekcje", auth, (req, res) => {
         }));
     res.json(mySections);
 });
+app.get("/section-members/:code", auth, (req, res) => {
+    const sections = loadSections();
+    const section = sections.find(s => s.code === req.params.code);
 
+    if (!section) return res.status(404).json({ message: "Nie ma takiej sekcji" });
+
+    // Sprawdzamy, czy osoba pytająca należy do sekcji
+    const isMember = section.members.some(m => m.username === req.user.username);
+    if (!isMember) return res.status(403).json({ message: "Brak dostępu" });
+
+    // Pobieramy wszystkich użytkowników, żeby wyciągnąć ich prawdziwe imiona
+    const allUsers = loadUsers();
+
+    // Mapujemy członków sekcji tak, aby dołączyć ich pole 'name'
+    const membersWithNames = section.members.map(member => {
+        const userDetails = allUsers.find(u => u.username === member.username);
+        return {
+            username: member.username,
+            name: userDetails ? userDetails.name : "Brak imienia", // Tu wyciągamy imię
+            role: member.role
+        };
+    });
+
+    res.json(membersWithNames);
+});
 app.post("/reset", auth, admin, (req, res) => {
     let users = loadUsers();
     saveUsers(users.filter(u => u.role === "admin"));
