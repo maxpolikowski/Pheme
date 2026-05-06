@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pheme - Panel Sigmy 👑</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #111; color: #fff; text-align: center; margin: 0; padding: 20px; }
+        .header { background: linear-gradient(135deg, #ffd700, #ffb300); color: #000; padding: 20px; border-radius: 10px; font-weight: bold; font-size: 24px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(255, 215, 0, 0.5); }
+        .grid { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; max-width: 800px; margin: 0 auto; }
+        .action-btn { background-color: #333; color: gold; padding: 20px 30px; text-decoration: none; border: 2px solid gold; border-radius: 10px; font-size: 18px; font-weight: bold; transition: 0.3s; cursor: pointer; width: 200px; }
+        .action-btn:hover { background-color: gold; color: #000; transform: scale(1.05); }
+        .back-btn { margin-top: 50px; display: inline-block; color: #ccc; text-decoration: none; border: 1px solid #555; padding: 10px 20px; border-radius: 5px; }
+        .back-btn:hover { background: #333; }
+        #content-area { margin-top: 40px; background: #222; padding: 20px; border-radius: 10px; text-align: left; max-width: 800px; margin-left: auto; margin-right: auto; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="header">👑 Panel Sigmy - Władza Absolutna</div>
+
+<div class="grid">
+    <button class="action-btn" onclick="pokaz('uzytkownicy')">👥 Lista Użytkowników</button>
+    <button class="action-btn" onclick="pokaz('sekcje')">📚 Lista Sekcji</button>
+    <button class="action-btn" onclick="pokaz('pytania')">❓ Lista Pytań (Globalna)</button>
+</div>
+
+<div id="content-area">
+    <h2 id="content-title" style="color: gold;">Dane</h2>
+    <div id="content-data">Ładowanie... (Pamiętaj, że musisz dodać te endpointy na backendzie!)</div>
+</div>
+
+<a href="start.html" class="back-btn">⬅️ Powrót do normalnego panelu</a>
+
+<script>
+    const API_URL = "https://pheme-far9.onrender.com";
+    const token = localStorage.getItem("token");
+    if (!token) window.location.href = "index.html";
+
+    // Weryfikacja przy wejściu na stronę
+    fetch(`${API_URL}/profil`, { headers: { "Authorization": "Bearer " + token } })
+        .then(res => res.json())
+        .then(data => { if (data.role !== "polska_sigma") window.location.href = "start.html"; });
+
+    function pokaz(typ) {
+        document.getElementById('content-area').style.display = 'block';
+        const dataBox = document.getElementById('content-data');
+        
+        if (typ === 'uzytkownicy') {
+            document.getElementById('content-title').innerText = "Wszyscy użytkownicy na platformie";
+            // Zmień endpoint na prawidłowy z Twojego backendu, np. /admin/users
+            dataBox.innerHTML = "<p>Tutaj musisz wykonać fetch do /wszyscy-uzytkownicy na backendzie.</p>";
+        } else if (typ === 'sekcje') {
+            document.getElementById('content-title').innerText = "Wszystkie sekcje";
+            // Tutaj dodaj listę wszystkich sekcji klikalnych przenoszących do widok-sekcji.html
+            dataBox.innerHTML = "<p>Tutaj musisz wykonać fetch do /wszystkie-sekcje na backendzie.</p>";
+        } else {
+            document.getElementById('content-title').innerText = "Globalny monitoring pytań";
+            dataBox.innerHTML = "<p>Moduł w budowie...</p>";
+        }
+    }
+</script>
+
+</body>
+</html>

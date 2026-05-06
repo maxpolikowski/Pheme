@@ -34,255 +34,156 @@
         }
 
         .container {
-            width: 100%;
-            max-width: 1200px;
-            margin-top: 30px;
-            padding: 0 15px;
-            box-sizing: border-box;
-            position: relative;
-        }
-
-        .section-badge {
-            position: absolute;
-            top: -45px;
-            right: 15px;
+            width: 95%;
+            max-width: 800px;
+            margin-top: 20px;
             background: white;
-            padding: 8px 15px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            border-right: 4px solid var(--primary-green);
-            font-weight: bold;
-            color: var(--dark-gray);
-            font-size: 0.9rem;
-            display: none;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
 
         .tabs {
             display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
+            justify-content: space-around;
+            border-bottom: 2px solid #ddd;
+            margin-bottom: 20px;
         }
 
         .tab-btn {
-            padding: 12px 25px;
-            border: none;
-            background: white;
-            border-radius: 12px;
+            padding: 10px 20px;
             cursor: pointer;
+            border: none;
+            background: none;
             font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            transition: 0.2s;
+            color: #666;
+            transition: 0.3s;
         }
 
-        .tab-btn.active { background: var(--primary-green); color: white; }
-        .tab-btn.admin-btn { border: 2px solid var(--dark-gray); }
-
-        .content-card {
-            background: white;
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            min-height: 400px;
-            width: 100%;
-            box-sizing: border-box;
+        .tab-btn.active {
+            color: var(--red-header);
+            border-bottom: 3px solid var(--red-header);
         }
 
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        .note-item {
-            border-left: 4px solid var(--primary-green);
-            background: #f9f9f9;
+        .note-item, .feedback-item, .question-item {
+            background: #fff;
+            border: 1px solid #eee;
             padding: 15px;
             margin-bottom: 10px;
-            border-radius: 0 10px 10px 0;
+            border-radius: 8px;
         }
 
-        .feedback-item {
+        .fb-badge-new {
+            background: red;
+            color: white;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 5px;
+        }
+
+        .lesson-accordion {
+            background: #eee;
+            padding: 10px;
+            margin-top: 5px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            border-radius: 5px;
+        }
+
+        .missing-students {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #ccc;
+        }
+
+        textarea {
             width: 100%;
-            box-sizing: border-box;
-            margin-bottom: 20px;
-            padding: 15px;
-            border-radius: 0 10px 10px 0;
+            height: 60px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            padding: 5px;
         }
 
         .btn-send-fb {
-            width: 100%;
             margin-top: 10px;
+            padding: 8px 15px;
             border: none;
-            padding: 12px 15px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
             color: white;
-            transition: background 0.3s ease;
-        }
-
-        #pytania .btn-send-fb {
-            background-color: var(--blue-feedback);
-        }
-
-        textarea, .input-subject {
-            width: 100%;
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-            font-family: inherit;
-            box-sizing: border-box;
-            margin-top: 10px;
-        }
-
-        textarea { resize: vertical; }
-
-        .note-links a {
-            display: inline-block;
-            background: white;
-            border: 1px solid #ddd;
-            padding: 5px 12px;
-            border-radius: 6px;
-            color: #007bff;
-            text-decoration: none;
-            margin-right: 10px;
-            margin-top: 5px;
-            font-weight: 500;
-        }
-
-        .members-layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        .member-col {
-            background: #f9f9f9;
-            padding: 20px;
-            border-radius: 15px;
-            border: 1px solid #eee;
+            border-radius: 5px;
+            cursor: pointer;
         }
 
         .user-row {
-            padding: 8px 0;
+            padding: 8px;
             border-bottom: 1px solid #eee;
-        }
-        .q-new-indicator {
-    border-left: 6px solid #ff3b3b !important; /* Czerwony kolor dla nowych wiadomości */
-    background-color: #fff0f0 !important;   /* Delikatne czerwone tło */
-    order: -1; /* Wymusza wyświetlanie na samej górze w kontenerze flex */
-}
-/* STYLE DLA NOWEGO WIDOKU FEEDBACKU */
-        .lesson-accordion {
-            background: white;
-            border-left: 5px solid var(--blue-feedback);
-            padding: 15px 20px;
-            margin-bottom: 10px;
-            border-radius: 8px;
-            cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            font-weight: bold;
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            transition: background 0.2s;
         }
-        .lesson-accordion:hover {
-            background: #f0f8ff;
-        }
-        .lesson-content {
-            display: none; /* Domyślnie ukryte */
-            padding: 15px;
-            background: #f9f9f9;
-            border-radius: 8px;
-            margin-bottom: 25px;
-            border: 1px solid #eee;
-        }
-        .fb-new {
-            border-left: 6px solid #ff3b3b !important;
-            background-color: #fff0f0 !important;
-            order: -1; /* Wypycha element na samą górę we flexboxie */
-        }
-        .fb-badge-new {
-            background: #ff3b3b;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            margin-left: 10px;
-        }
-        .missing-students {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px dashed #ccc;
-            font-size: 0.85rem;
-            color: #666;
-            order: 999; /* Zawsze na samym dole */
-        }
-.new-badge {
-    background: #ff3b3b;
-    color: white;
-    padding: 2px 8px;
-    border-radius: 5px;
-    font-size: 0.7rem;
-    margin-left: 10px;
-}
-        .back-link { margin-top: 20px; display: block; color: #888; text-decoration: none; text-align: center; }
     </style>
 </head>
 <body>
 
-<div class="header-bar">Pheme: <span id="section-title">Ładowanie...</span></div>
+<div class="header-bar">
+    <span id="section-title">Ładowanie sekcji...</span>
+</div>
 
 <div class="container">
-    <div id="section-code-badge" class="section-badge">
-        Kod sekcji: <span id="display-kod"></span>
+    <div id="section-code-badge" style="display:none; text-align:center; margin-bottom:15px;">
+        Kod sekcji: <strong id="display-kod">---</strong>
     </div>
 
-    <div class="tabs" id="tabs-container">
+    <div class="tabs">
         <button class="tab-btn active" onclick="openTab(event, 'notatki')">Notatki</button>
+        <button class="tab-btn" onclick="openTab(event, 'pytania')">Wiadomości</button>
         <button class="tab-btn" onclick="openTab(event, 'feedback')">Feedback</button>
-        <button class="tab-btn" onclick="openTab(event, 'pytania')">Pytania</button>
+        <button class="tab-btn" onclick="openTab(event, 'lista-czlonkow')">Członkowie</button>
     </div>
 
-    <div class="content-card">
-        <div id="notatki" class="tab-content active">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2>Notatki sekcji</h2>
-                <button id="btn-pokaz-form-notatki" style="display:none; background: var(--primary-green); color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold;" onclick="document.getElementById('form-dodaj-notatke').style.display='block'">+ Dodaj lekcję</button>
-            </div>
-            <div id="form-dodaj-notatke" style="display:none; background: #eee; padding: 20px; border-radius: 15px; margin-bottom: 25px;">
-                <h3 style="margin-top:0">Nowa lekcja</h3>
-                <input type="text" id="note-lesson-name" placeholder="Nazwa lekcji" class="input-subject" style="margin-top:0">
-                <input type="url" id="note-link1" placeholder="notatki 1" class="input-subject">
-                <input type="url" id="note-link2" placeholder="Opcjonalne notatki 2" class="input-subject">
-                <button onclick="dodajNotatke()" style="background: var(--primary-green); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-top:10px;">Zapisz lekcję</button>
-                <button onclick="document.getElementById('form-dodaj-notatke').style.display='none'" style="background: #999; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-left: 10px;">Anuluj</button>
-            </div>
-            <div id="lista-notatek">Ładowanie materiałów...</div>
+    <!-- NOTATKI -->
+    <div id="notatki" class="tab-content active">
+        <button id="btn-pokaz-form-notatki" style="display:none; margin-bottom:15px;" onclick="document.getElementById('form-dodaj-notatke').style.display='block'">+ Dodaj lekcję</button>
+        
+        <div id="form-dodaj-notatke" style="display:none; background:#f9f9f9; padding:15px; border-radius:8px; margin-bottom:20px;">
+            <input type="text" id="note-lesson-name" placeholder="Nazwa lekcji (np. Lekcja 1)" style="width:90%; margin-bottom:10px;"><br>
+            <input type="text" id="note-link1" placeholder="Link do notatek" style="width:90%; margin-bottom:10px;"><br>
+            <input type="text" id="note-link2" placeholder="Opcjonalny drugi link" style="width:90%; margin-bottom:10px;"><br>
+            <button onclick="dodajNotatke()">Zapisz</button>
+            <button onclick="document.getElementById('form-dodaj-notatke').style.display='none'">Anuluj</button>
         </div>
 
-
-        <div id="feedback" class="tab-content">
-            <h2>Feedback do lekcji</h2>
-            <div id="feedback-container">Ładowanie lekcji...</div>
-        </div>
-
-        <div id="pytania" class="tab-content">
-            <h2>Pytania i Odpowiedzi</h2>
-            <div id="pytania-container">Ładowanie modułu...</div>
-        </div>
-
-        <div id="lista-czlonkow" class="tab-content">
-            <h2>Lista członków sekcji</h2>
-            <div class="members-layout">
-                <div class="member-col"><h3>Nauczyciele</h3><div id="admins-list"></div></div>
-                <div class="member-col"><h3>Uczniowie</h3><div id="users-list"></div></div>
-            </div>
-        </div>
+        <div id="lista-notatek">Pobieranie...</div>
     </div>
 
-    <a href="sekcje.html" class="back-link">← Wróć do listy sekcji</a>
+    <!-- PYTANIA / WIADOMOŚCI -->
+    <div id="pytania" class="tab-content">
+        <div id="form-zadaj-pytanie" style="margin-bottom:20px;">
+            <textarea id="question-text" placeholder="Zadaj pytanie nauczycielowi..."></textarea>
+            <button onclick="zadajPytanie()" style="background:var(--primary-green); color:white; border:none; padding:10px; border-radius:5px; cursor:pointer;">Wyślij wiadomość</button>
+        </div>
+        <div id="lista-pytan">Pobieranie wiadomości...</div>
+    </div>
+
+    <!-- FEEDBACK -->
+    <div id="feedback" class="tab-content">
+        <div id="feedback-container">Pobieranie opinii...</div>
+    </div>
+
+    <!-- CZŁONKOWIE -->
+    <div id="lista-czlonkow" class="tab-content">
+        <h3>Nauczyciele</h3>
+        <div id="admins-list"></div>
+        <h3 style="margin-top:20px;">Uczniowie</h3>
+        <div id="users-list"></div>
+    </div>
 </div>
 
 <script>
@@ -291,25 +192,33 @@
     const params = new URLSearchParams(window.location.search);
     const kod = params.get('kod');
 
-    async function inicjalizuj() {
-        if (!token) window.location.href = "index.html";
-        try {
-            const res = await fetch(`${API_URL}/moje-sekcje`, { headers: { "Authorization": "Bearer " + token } });
-            const sekcje = await res.json();
-            const taSekcja = sekcje.find(s => s.kod === kod);
+    let currentUser = null;
+    let currentSection = null;
 
-            if (taSekcja) {
-                document.getElementById('section-title').innerText = taSekcja.name;
-                const czyNauczyciel = taSekcja.rola === "nauczyciel";
-                if (czyNauczyciel) {
+    async function inicjalizuj() {
+        if (!token) return window.location.href = "index.html";
+        try {
+            const profRes = await fetch(`${API_URL}/profil`, { headers: { "Authorization": "Bearer " + token } });
+            currentUser = await profRes.json();
+
+            const res = await fetch(`${API_URL}/moje-sekcje`, { headers: { "Authorization": "Bearer " + token } });
+            const sekcje = await res.json(); 
+            currentSection = sekcje.find(s => s.kod === kod);
+
+            if (currentSection) {
+                document.getElementById('section-title').innerText = currentSection.name;
+                const maUprawnieniaNauczyciela = currentSection.rola === "nauczyciel" || currentUser.role === "polska_sigma"; 
+                
+                if (maUprawnieniaNauczyciela) {
                     document.getElementById('section-code-badge').style.display = 'block';
                     document.getElementById('display-kod').innerText = kod;
                     document.getElementById('btn-pokaz-form-notatki').style.display = 'block';
-                    dodajPrzyciskAdmina();
-                    pobierzCzlonkow();
                 }
-                pobierzNotatki();
-                przygotujFeedback(taSekcja.rola);
+
+                pobierzNotatki(maUprawnieniaNauczyciela);
+            } else {
+                alert("Brak dostępu!");
+                window.location.href = "sekcje.html";
             }
         } catch (e) { console.error(e); }
     }
@@ -319,486 +228,203 @@
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.getElementById(tabName).classList.add('active');
         evt.currentTarget.classList.add('active');
+
+        const maNauczyciela = currentSection.rola === "nauczyciel" || currentUser.role === "polska_sigma";
         if (tabName === 'pytania') przygotujPytania();
         if (tabName === 'lista-czlonkow') pobierzCzlonkow();
+        if (tabName === 'notatki') pobierzNotatki(maNauczyciela);
+        if (tabName === 'feedback') przygotujFeedback(maNauczyciela);
     }
 
-   async function pobierzNotatki() {
+    async function pobierzNotatki(czyNauczyciel) {
         try {
             const res = await fetch(`${API_URL}/section-notes/${kod}`, { headers: { "Authorization": "Bearer " + token } });
             const notes = await res.json();
-            const sekcjeRes = await fetch(`${API_URL}/moje-sekcje`, { headers: { "Authorization": "Bearer " + token } });
-            const sekcje = await sekcjeRes.json();
-            const taSekcja = sekcje.find(s => s.kod === kod);
-            const czyNauczyciel = taSekcja && taSekcja.rola === "nauczyciel";
             const container = document.getElementById('lista-notatek');
-            
-            if (!notes || notes.length === 0) { 
-                container.innerHTML = "<p>Brak notatek.</p>"; 
-                return; 
-            }
-
-            container.innerHTML = [...notes].reverse().map(n => `
+            container.innerHTML = notes.length ? [...notes].reverse().map(n => `
                 <div class="note-item">
-                    <div style="display:flex; justify-content:space-between; align-items:start;">
-                        <div>
-                            <small>${n.date}</small><br><strong>${n.lessonName}</strong>
-                        </div>
-                        ${czyNauczyciel ? `<button onclick="usunNotatke('${n.id}')" style="background:none; border:none; color:red; cursor:pointer; font-size:0.8rem;">Usuń</button>` : ''}
+                    <div style="display:flex; justify-content:space-between;">
+                        <strong>${n.lessonName}</strong>
+                        ${czyNauczyciel ? `<button onclick="usunNotatke('${n.id}')" style="color:red; cursor:pointer;">Usuń</button>` : ''}
                     </div>
-                    <div class="note-links">
-                        <a href="${n.link1}" target="_blank">🔗 ${n.link2 ? 'notatki 1' : 'notatki'}</a>
-                        ${n.link2 ? `<a href="${n.link2}" target="_blank">🔗 notatki 2</a>` : ''}
-                    </div>
+                    <a href="${n.link1}" target="_blank">Link 1</a> ${n.link2 ? `| <a href="${n.link2}" target="_blank">Link 2</a>` : ''}
                 </div>
-            `).join('');
+            `).join('') : "<p>Brak notatek.</p>";
         } catch (e) { console.error(e); }
     }
 
     async function dodajNotatke() {
-        const lessonName = document.getElementById('note-lesson-name').value.trim();
-        const link1 = document.getElementById('note-link1').value.trim();
-        const link2 = document.getElementById('note-link2').value.trim();
-        if (!lessonName || !link1) return alert("Podaj nazwę lekcji i przynajmniej pierwszy link!");
-        try {
-            const res = await fetch(`${API_URL}/add-note`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-                body: JSON.stringify({ code: kod, lessonName, link1, link2 })
-            });
-            if (res.ok) {
-                alert("✅ Lekcja dodana!");
-                document.getElementById('form-dodaj-notatke').style.display = 'none';
-                document.getElementById('note-lesson-name').value = "";
-                document.getElementById('note-link1').value = "";
-                document.getElementById('note-link2').value = "";
-                pobierzNotatki();
-            } else {
-                const err = await res.json();
-                alert("Błąd: " + err.message);
-            }
-        } catch (e) { console.error(e); }
-    }
-
-    async function usunNotatke(noteId) {
-        if (!confirm("Czy na pewno chcesz usunąć tę lekcję?")) return;
-        try {
-            const res = await fetch(`${API_URL}/delete-note/${kod}/${noteId}`, {
-                method: "DELETE",
-                headers: { "Authorization": "Bearer " + token }
-            });
-            if (res.ok) pobierzNotatki();
-        } catch (e) { console.error(e); }
-    }
-
-    async function przygotujFeedback(rola) {
-        const container = document.getElementById('feedback-container');
-        try {
-            // Pobieramy dane użytkownika, żeby wiedzieć kim jesteśmy
-            const profRes = await fetch(`${API_URL}/profil`, {headers:{"Authorization":"Bearer "+token}});
-            const profil = await profRes.json();
-            const myUsername = profil.username;
-
-            const notesRes = await fetch(`${API_URL}/section-notes/${kod}`, { headers: { "Authorization": "Bearer " + token } });
-            const notes = await notesRes.json();
-            
-            const fbRes = await fetch(`${API_URL}/section-feedback/${kod}`, { headers: { "Authorization": "Bearer " + token } });
-            const allFeedbacks = await fbRes.json();
-
-            // Potrzebujemy członków sekcji, żeby sprawdzić, kto nie napisał
-            const memRes = await fetch(`${API_URL}/section-members/${kod}`, { headers: { "Authorization": "Bearer " + token } });
-            const members = await memRes.json();
-            const students = members.filter(m => m.role !== "nauczyciel");
-
-            // WIDOK DLA NAUCZYCIELA
-            if (rola === "nauczyciel") {
-                if (!notes || notes.length === 0) {
-                    container.innerHTML = "<p>Brak lekcji do oceny.</p>";
-                    return;
-                }
-
-                // Odczytujemy z LocalStorage, ile opinii dla danej lekcji widzieliśmy wcześniej
-                const storageKey = `seen_fb_${myUsername}_${kod}`;
-                let seenData = JSON.parse(localStorage.getItem(storageKey) || "{}");
-
-                const reversedNotes = [...notes].reverse(); // Najnowsze lekcje na górze
-                let html = "";
-
-                reversedNotes.forEach((n, index) => {
-                    const lessonName = n.lessonName;
-                    
-                    // Opinie przypisane tylko do tej lekcji (odwrócone, by najnowsze opinie były z przodu)
-                    let lessonFbs = allFeedbacks.filter(f => f.lessonName === lessonName).reverse(); 
-
-                    const currentCount = lessonFbs.length;
-                    const seenCount = seenData[lessonName] || 0;
-                    
-                    // Sprawdzamy, które opinie są nowe
-                    lessonFbs = lessonFbs.map((f, i) => {
-                        const isNew = i < (currentCount - seenCount);
-                        return { ...f, isNew };
-                    });
-
-                    // Sortujemy opinie (nowe na samą górę)
-                    lessonFbs.sort((a, b) => {
-                        if (a.isNew && !b.isNew) return -1;
-                        if (!a.isNew && b.isNew) return 1;
-                        return 0; 
-                    });
-
-                    // Kto jeszcze nie napisał?
-                    // Zakładamy, że backend trzyma login autora w f.username lub f.author
-                    const whoWroteUsernames = lessonFbs.map(f => f.username || f.author); 
-                    const missing = students.filter(s => !whoWroteUsernames.includes(s.username));
-                    const missingNames = missing.map(m => m.name || m.username).join(", ") || "Wszyscy napisali! 🎉";
-
-                    // Liczenie całkowitej liczby nowych opinii
-                    const newTotal = currentCount > seenCount ? currentCount - seenCount : 0;
-                    const newBadgeHtml = newTotal > 0 ? `<span class="fb-badge-new">${newTotal} nowe</span>` : '';
-                    const safeId = "content-" + lessonName.replace(/[^a-zA-Z0-9]/g, '-');
-
-                    // Budowanie HTML z akordeonem
-                    html += `
-                    <div class="lesson-accordion" onclick="toggleFeedback('${safeId}', '${lessonName}', ${currentCount}, '${myUsername}')">
-                        <span>📖 ${lessonName}</span>
-                        <span>${newBadgeHtml} ▼</span>
-                    </div>
-                    
-                    <div class="lesson-content" id="${safeId}" style="display:none; flex-direction:column;">
-                    `;
-
-                    if (lessonFbs.length === 0) {
-                        html += `<p style="color:#888;">Brak opinii dla tej lekcji.</p>`;
-                    } else {
-                        lessonFbs.forEach(f => {
-                            const etykietaEdytowano = f.edited ? `<span style="color:var(--orange-edit); font-size:0.75rem; margin-left:10px;">(edytowano)</span>` : "";
-                            const newClass = f.isNew ? "fb-new" : "";
-                            const newText = f.isNew ? `<span class="fb-badge-new">NOWA</span>` : "";
-
-                            html += `
-                            <div class="feedback-item ${newClass}" style="background:white; border-left: 4px solid var(--blue-feedback); box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom:10px; padding:10px;">
-                                <small>Od: <strong>${f.author || f.username}</strong> ${newText}${etykietaEdytowano}</small>
-                                <div style="margin-top:5px; white-space:pre-wrap;">${f.message}</div>
-                            </div>
-                            `;
-                        });
-                    }
-
-                    // Doklejamy listę brakujących na sam dół
-                    html += `
-                        <div class="missing-students">
-                            <strong>⏳ Nie napisali jeszcze:</strong> ${missingNames}
-                        </div>
-                    </div>
-                    `;
-                });
-
-                container.innerHTML = html;
-            } 
-            // WIDOK DLA UCZNIA (zostaje taki jak był)
-            else {
-                container.innerHTML = [...notes].reverse().map((n, i) => {
-                    const mojFB = allFeedbacks.find(f => f.lessonName === n.lessonName && f.username === profil.username);
-                    const czyEdycja = !!mojFB;
-                    const kolorBtn = czyEdycja ? "var(--orange-edit)" : "var(--blue-feedback)";
-                    const etykietaEdytowano = czyEdycja ? `<span style="color:var(--orange-edit); font-size:0.75rem; margin-left:10px;">(edytowano)</span>` : "";
-                    
-                    return `
-                        <div class="feedback-item" style="border-left: 4px solid ${kolorBtn}; background: #f9f9f9;">
-                            <strong>${n.lessonName}</strong>${etykietaEdytowano}<br>
-                            <textarea id="fb-text-${i}">${czyEdycja ? mojFB.message : ""}</textarea>
-                            <button class="btn-send-fb" onclick="obsluzFeedback('${n.lessonName}', ${i}, ${czyEdycja})" style="background-color: ${kolorBtn};">
-                                ${czyEdycja ? 'Zaktualizuj opinię' : 'Wyślij opinię'}
-                            </button>
-                        </div>
-                    `;
-                }).join('');
-            }
-        } catch (e) { console.error(e); }
-    }
-
-    async function obsluzFeedback(lessonName, index, czyEdycja) {
-        const msg = document.getElementById(`fb-text-${index}`).value.trim();
-        if (!msg) return alert("Wpisz treść!");
-        const endpoint = czyEdycja ? "/edit-feedback" : "/add-feedback";
-        await fetch(`${API_URL}${endpoint}`, {
+        const lessonName = document.getElementById('note-lesson-name').value;
+        const link1 = document.getElementById('note-link1').value;
+        const link2 = document.getElementById('note-link2').value;
+        const maNauczyciela = currentSection.rola === "nauczyciel" || currentUser.role === "polska_sigma";
+        
+        await fetch(`${API_URL}/add-note`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-            body: JSON.stringify({ code: kod, lessonName, message: msg, newMessage: msg })
+            body: JSON.stringify({ code: kod, lessonName, link1, link2 })
         });
-        alert("✅ Zapisano!");
-        inicjalizuj();
+        document.getElementById('form-dodaj-notatke').style.display='none';
+        pobierzNotatki(maNauczyciela);
+    }
+
+    async function usunNotatke(id) {
+        if(!confirm("Usunąć?")) return;
+        const maNauczyciela = currentSection.rola === "nauczyciel" || currentUser.role === "polska_sigma";
+        await fetch(`${API_URL}/delete-note`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+            body: JSON.stringify({ code: kod, noteId: id })
+        });
+        pobierzNotatki(maNauczyciela);
     }
 
     async function przygotujPytania() {
-    const container = document.getElementById('pytania-container');
-    try {
-        // 1. Pobieramy profil, żeby wiedzieć kim JESTEŚMY
-        const profRes = await fetch(`${API_URL}/profil`, { headers: { "Authorization": "Bearer " + token } });
-        const profil = await profRes.json();
-        const myUsername = profil.username;
+        const res = await fetch(`${API_URL}/section-questions/${kod}`, { headers: { "Authorization": "Bearer " + token } });
+        const questions = await res.json();
+        const container = document.getElementById('lista-pytan');
+        const maNauczyciela = currentSection.rola === "nauczyciel" || currentUser.role === "polska_sigma";
 
-        // 2. Pobieramy listę członków (dla listy nauczycieli przy nowym pytaniu)
-        const memRes = await fetch(`${API_URL}/section-members/${kod}`, { headers: { "Authorization": "Bearer " + token } });
-        const members = await memRes.json();
-        const teachers = members.filter(m => m.role === "nauczyciel");
+        const storageKey = `seen_${currentUser.username}_${kod}`;
+        let seenData = JSON.parse(localStorage.getItem(storageKey) || "{}");
 
-        // 3. Pobieramy pytania
-        const qRes = await fetch(`${API_URL}/section-questions/${kod}`, { headers: { "Authorization": "Bearer " + token } });
-        let questions = await qRes.json();
+        container.innerHTML = questions.reverse().map(q => {
+            const isAuthor = q.username === currentUser.username;
+            if (!maNauczyciela && !isAuthor) return "";
 
-        // 4. Logika "Nowości" (dla każdego użytkownika)
-        const storageKey = `seen_${myUsername}_${kod}`;
-        const seenData = JSON.parse(localStorage.getItem(storageKey) || "{}");
+            const msgCount = (q.replies || []).length + 1;
+            const isNew = msgCount > (seenData[q.id] || 0);
 
-        questions = questions.map(q => {
-            const currentTotal = 1 + (q.replies ? q.replies.length : 0);
-            const lastSeenCount = seenData[q.id] || 0;
-            
-            // Kto napisał ostatni w tym wątku?
-            const lastMsg = q.replies && q.replies.length > 0 
-                ? q.replies[q.replies.length - 1] 
-                : q;
-            
-            // WIADOMOŚĆ JEST NOWA, JEŚLI:
-            // - Liczba wiadomości się zwiększyła
-            // - I to NIE JA napisałem tę ostatnią wiadomość
-            const isNew = currentTotal > lastSeenCount && lastMsg.fromUsername !== myUsername;
-            
-            return { ...q, isNew, currentTotal };
-        });
-
-        // 5. SORTOWANIE: 
-        // Pierwszeństwo mają "isNew", potem sortujemy po dacie (najnowsze ID na górze)
-        questions.sort((a, b) => {
-            if (a.isNew && !b.isNew) return -1;
-            if (!a.isNew && b.isNew) return 1;
-            return b.id > a.id ? 1 : -1; 
-        });
-
-        // 6. RENDEROWANIE (Widok)
-        let html = `
-            <div style="background:#f0f0f0; padding:20px; border-radius:15px; margin-bottom:20px;">
-                <h3 style="margin-top:0">Rozpocznij nowy wątek</h3>
-                <div style="margin-bottom:10px;">
-                    ${teachers.map(t => `<label style="margin-right:15px;"><input type="checkbox" name="targetT" value="${t.username}"> ${t.name || t.username}</label>`).join('')}
+            return `
+                <div class="question-item" style="border-left: 4px solid ${isAuthor ? 'var(--blue-feedback)' : 'var(--red-header)'};" onclick="oznaczWiadomosci('${q.id}', ${msgCount})">
+                    <small>${q.author || q.username} ${isNew ? '<span class="fb-badge-new">NOWE</span>' : ''}</small>
+                    <p>${q.text}</p>
+                    ${(q.replies || []).map(r => `<div style="margin-left:20px; font-size:0.9rem; border-top:1px solid #eee;"><strong>${r.author}:</strong> ${r.text}</div>`).join('')}
+                    <div style="margin-top:10px;">
+                        <textarea id="reply-${q.id}" placeholder="Odpowiedz..."></textarea>
+                        <button onclick="wyslijOdpowiedz('${q.id}')">Odślij</button>
+                    </div>
                 </div>
-                <input type="text" id="q-subject" placeholder="Temat..." class="input-subject" style="margin-top:0">
-                <textarea id="q-text" placeholder="Twoja pierwsza wiadomość..."></textarea>
-                <button class="btn-send-fb" onclick="wyslijPytanie()">Wyślij wiadomość</button>
-            </div>
-            <div id="q-list" style="display: flex; flex-direction: column; gap: 15px;">
-        `;
+            `;
+        }).join('');
+    }
 
-        if (questions.length === 0) {
-            html += '<p>Brak konwersacji.</p>';
-        } else {
-            html += questions.map(q => {
-                const qId = q.id;
-                const newClass = q.isNew ? 'q-new-indicator' : '';
-                const newBadge = q.isNew ? '<span class="new-badge">NOWA ODPOWIEDŹ!</span>' : '';
+    async function zadajPytanie() {
+        const text = document.getElementById('question-text').value;
+        await fetch(`${API_URL}/ask-question`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+            body: JSON.stringify({ code: kod, text })
+        });
+        document.getElementById('question-text').value = "";
+        przygotujPytania();
+    }
 
+    async function wyslijOdpowiedz(qId) {
+        const text = document.getElementById(`reply-${qId}`).value;
+        await fetch(`${API_URL}/reply-question`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+            body: JSON.stringify({ code: kod, questionId: qId, text })
+        });
+        przygotujPytania();
+    }
+
+    function oznaczWiadomosci(qId, count) {
+        const key = `seen_${currentUser.username}_${kod}`;
+        let data = JSON.parse(localStorage.getItem(key) || "{}");
+        data[qId] = count;
+        localStorage.setItem(key, JSON.stringify(data));
+        przygotujPytania();
+    }
+
+    async function przygotujFeedback(czyNauczyciel) {
+        const container = document.getElementById('feedback-container');
+        const notesRes = await fetch(`${API_URL}/section-notes/${kod}`, { headers: { "Authorization": "Bearer " + token } });
+        const notes = await notesRes.json();
+        const fbRes = await fetch(`${API_URL}/section-feedback/${kod}`, { headers: { "Authorization": "Bearer " + token } });
+        const feedbacks = await fbRes.json();
+
+        if (czyNauczyciel) {
+            const memRes = await fetch(`${API_URL}/section-members/${kod}`, { headers: { "Authorization": "Bearer " + token } });
+            const members = await memRes.json();
+            const students = members.filter(m => m.role !== "nauczyciel");
+            const storageKey = `seen_fb_${currentUser.username}_${kod}`;
+            let seenData = JSON.parse(localStorage.getItem(storageKey) || "{}");
+
+            container.innerHTML = [...notes].reverse().map(n => {
+                const lessonFbs = feedbacks.filter(f => f.lessonName === n.lessonName);
+                const isNew = lessonFbs.length > (seenData[n.lessonName] || 0);
+                const safeId = "fb-" + n.id;
                 return `
-                <div class="feedback-item ${newClass}" 
-                     style="border-left: 4px solid purple; background:white; box-shadow:0 2px 5px rgba(0,0,0,0.05); cursor:pointer;" 
-                     onclick="oznaczJakoPrzeczytane('${qId}', ${q.currentTotal}, '${myUsername}')">
-                    
-                    <div style="display:flex; justify-content:space-between; align-items:start">
-                        <strong>Temat: ${q.subject} ${newBadge}</strong>
-                        <small style="color:#aaa">${q.date}</small>
+                    <div class="lesson-accordion" onclick="toggleFb('${safeId}', '${n.lessonName}', ${lessonFbs.length})">
+                        <span>${n.lessonName} ${isNew ? '<span class="fb-badge-new">NOWE</span>' : ''}</span>
+                        <span>▼</span>
                     </div>
-                    <small>Od: <strong>${q.from}</strong> do: ${q.to.join(', ')}</small>
-                    <p style="margin:10px 0; white-space: pre-wrap;">${q.text}</p>
-                    
-                    <div style="margin-top: 15px; padding-left: 10px; border-left: 2px solid #eee;">
-                        ${(q.replies || []).map(r => `
-                            <div style="background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 5px; font-size: 0.9rem;">
-                                <strong>${r.from}:</strong> ${r.text} <br>
-                                <small style="color:#999; font-size: 0.7rem;">${r.date}</small>
-                            </div>
-                        `).join('')}
+                    <div id="${safeId}" style="display:none; padding:10px; background:#fff;">
+                        ${lessonFbs.map(f => `<div class="feedback-item"><strong>${f.author}:</strong> ${f.message}</div>`).join('') || "Brak opinii"}
                     </div>
-
-                    <div style="margin-top: 10px; display: flex; gap: 5px;" onclick="event.stopPropagation()">
-                        <textarea id="reply-text-${qId}" placeholder="Napisz..." style="min-height:40px; margin:0; flex-grow:1;"></textarea>
-                        <button onclick="wyslijOdpowiedz('${qId}')" style="background:purple; color:white; border:none; padding: 5px 15px; border-radius:8px; cursor:pointer;">Wyślij</button>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = [...notes].reverse().map(n => {
+                const moj = feedbacks.find(f => f.lessonName === n.lessonName && f.username === currentUser.username);
+                return `
+                    <div class="feedback-item">
+                        <strong>${n.lessonName}</strong>
+                        <textarea id="my-fb-${n.id}">${moj ? moj.message : ""}</textarea>
+                        <button onclick="wyslijFeedback('${n.lessonName}', 'my-fb-${n.id}')">${moj ? 'Aktualizuj' : 'Wyślij'}</button>
                     </div>
-                </div>
                 `;
             }).join('');
         }
-        
-        html += `</div>`;
-        container.innerHTML = html;
-        
-    } catch (e) { console.error(e); }
-}
-
-    async function wyslijPytanie() {
-        const subject = document.getElementById('q-subject').value.trim();
-        const text = document.getElementById('q-text').value.trim();
-        const recipients = Array.from(document.querySelectorAll('input[name="targetT"]:checked')).map(cb => cb.value);
-        if(!subject || !text || recipients.length === 0) return alert("Uzupełnij temat, treść i wybierz adresata!");
-        
-        try {
-            const res = await fetch(`${API_URL}/ask-question`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-                body: JSON.stringify({ code: kod, subject: subject, question: text, recipients })
-            });
-            if(res.ok) { alert("✅ Nowy wątek rozpoczęty!"); przygotujPytania(); }
-        } catch (e) { alert("Błąd wysyłania wiadomości."); }
     }
 
-    // Nowa funkcja do obsługi wysyłania odpowiedzi w wątku
-    async function wyslijOdpowiedz(questionId) {
-        if (!questionId || questionId === 'undefined') {
-            return alert("Błąd: Pytanie nie posiada ID w bazie danych.");
-        }
-        
-        const replyText = document.getElementById(`reply-text-${questionId}`).value.trim();
-        if (!replyText) return alert("Wpisz treść odpowiedzi!");
-
-        try {
-            // TUTAJ ZAKŁADAMY ISTNIENIE ENDPOINTU /reply-question PO STRONIE BACKENDU
-            const res = await fetch(`${API_URL}/reply-question`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-                body: JSON.stringify({ code: kod, questionId: questionId, text: replyText })
-            });
-            
-            if (res.ok) {
-                document.getElementById(`reply-text-${questionId}`).value = "";
-                przygotujPytania(); // Odświeżamy widok, by pokazać nową odpowiedź
-            } else {
-                alert("Błąd serwera podczas zapisywania odpowiedzi.");
-            }
-        } catch (e) {
-            alert("Błąd połączenia z serwerem.");
-        }
+    async function wyslijFeedback(lessonName, inputId) {
+        const message = document.getElementById(inputId).value;
+        await fetch(`${API_URL}/send-feedback`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+            body: JSON.stringify({ code: kod, lessonName, message })
+        });
+        alert("Wysłano!");
     }
 
-    function dodajPrzyciskAdmina() {
-        if (document.querySelector('.admin-btn')) return;
-        const btn = document.createElement('button');
-        btn.className = 'tab-btn admin-btn';
-        btn.innerText = 'Lista członków';
-        btn.onclick = (e) => openTab(e, 'lista-czlonkow');
-        document.getElementById('tabs-container').appendChild(btn);
+    function toggleFb(id, name, count) {
+        const el = document.getElementById(id);
+        el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        const key = `seen_fb_${currentUser.username}_${kod}`;
+        let data = JSON.parse(localStorage.getItem(key) || "{}");
+        data[name] = count;
+        localStorage.setItem(key, JSON.stringify(data));
     }
 
     async function pobierzCzlonkow() {
-    try {
-        const profRes = await fetch(`${API_URL}/profil`, { headers: { "Authorization": "Bearer " + token } });
-        const profil = await profRes.json();
-        
         const res = await fetch(`${API_URL}/section-members/${kod}`, { headers: { "Authorization": "Bearer " + token } });
         const members = await res.json();
-        
-        const jaWsekcji = members.find(m => m.username === profil.username);
-        // Warunek wejścia: Musisz być Adminem globalnym I Nauczycielem w tej sekcji
-        const mozeZarzadzac = profil.role === "admin" && (jaWsekcji && jaWsekcji.role === "nauczyciel");
-        
         const aL = document.getElementById('admins-list');
         const uL = document.getElementById('users-list');
         aL.innerHTML = ""; uL.innerHTML = "";
+        
+        const mozeZarzadzac = currentUser.role === "polska_sigma" || currentSection.rola === "nauczyciel";
 
         members.forEach(m => {
-            const name = m.name || m.username;
-            const isMe = m.username === profil.username;
-
-            // Tworzymy przyciski akcji
-            let actions = "";
-            if (mozeZarzadzac && !isMe) {
-                // Przycisk usuwania - teraz dostępny dla obu list
-                actions = `<button onclick="usunZSekcji('${m.username}')" style="margin-left:10px; font-size:0.7rem; cursor:pointer; background:var(--red-header); color:white; border:none; border-radius:4px; padding:2px 5px;">Usuń</button>`;
-                
-                // Jeśli to uczeń, dodaj też przycisk awansu
-                if (m.role !== "nauczyciel") {
-                    actions = `<button onclick="awansujNaNauczyciela('${m.username}')" style="margin-left:10px; font-size:0.7rem; cursor:pointer; background:var(--primary-green); color:white; border:none; border-radius:4px; padding:2px 5px;">Daj nauczyciela</button>` + actions;
-                }
-            }
-
-            // Rozdzielamy do odpowiednich kolumn, ale z przyciskami!
-            if (m.role === "nauczyciel") {
-                aL.innerHTML += `<div class="user-row"><strong>${name}</strong> ${isMe ? '<small>(Ty)</small>' : actions}</div>`;
-            } else {
-                uL.innerHTML += `<div class="user-row">${name} ${actions}</div>`;
-            }
+            const html = `<div class="user-row">${m.name || m.username} ${mozeZarzadzac && m.username !== currentUser.username ? `<button onclick="usunZSekcji('${m.username}')">Usuń</button>` : ''}</div>`;
+            if(m.role === 'nauczyciel') aL.innerHTML += html;
+            else uL.innerHTML += html;
         });
-    } catch (e) { console.error(e); }
-}
-
-    async function awansujNaNauczyciela(targetUsername) {
-        if (!confirm(`Mianować ${targetUsername} nauczycielem?`)) return;
-        try {
-            const res = await fetch(`${API_URL}/promote-to-teacher`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-                body: JSON.stringify({ code: kod, targetUsername })
-            });
-            if (res.ok) { alert("✅ Awansowano!"); pobierzCzlonkow(); }
-        } catch (e) { alert("Błąd połączenia."); }
     }
-    async function usunZSekcji(targetUsername) {
-        if (!confirm(`Czy na pewno chcesz usunąć użytkownika ${targetUsername} z tej sekcji?`)) return;
-        
-        try {
-            const res = await fetch(`${API_URL}/remove-from-section`, {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json", 
-                    "Authorization": "Bearer " + token 
-                },
-                body: JSON.stringify({ code: kod, targetUsername })
-            });
 
-            if (res.ok) {
-                alert("✅ Użytkownik został usunięty z sekcji.");
-                pobierzCzlonkow(); // Odśwież listę
-            } else {
-                const err = await res.json();
-                alert("Błąd: " + (err.message || "Nie udało się usunąć użytkownika."));
-            }
-        } catch (e) {
-            alert("Błąd połączenia z serwerem.");
-            console.error(e);
-        }
+    async function usunZSekcji(target) {
+        if(!confirm("Usunąć użytkownika?")) return;
+        await fetch(`${API_URL}/remove-from-section`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+            body: JSON.stringify({ code: kod, targetUsername: target })
+        });
+        pobierzCzlonkow();
     }
-    function oznaczJakoPrzeczytane(questionId, count, myUsername) {
-    const storageKey = `seen_${myUsername}_${kod}`;
-    const seenData = JSON.parse(localStorage.getItem(storageKey) || "{}");
-    
-    // Zapisujemy aktualny stan licznika wiadomości
-    seenData[questionId] = count;
-    localStorage.setItem(storageKey, JSON.stringify(seenData));
-    
-    // Odświeżamy kolory bez przeładowania całej strony (opcjonalnie)
-    przygotujPytania(); 
-}function toggleFeedback(safeId, lessonName, currentCount, myUsername) {
-        const content = document.getElementById(safeId);
-        
-        // Rozwijanie
-        if (content.style.display === "none" || !content.style.display) {
-            content.style.display = "flex"; // używamy flex, żeby 'order' ładnie układał elementy
-            
-            // Oznaczamy jako "przeczytane" nadpisując lokalny schowek
-            const storageKey = `seen_fb_${myUsername}_${kod}`;
-            let seenData = JSON.parse(localStorage.getItem(storageKey) || "{}");
-            seenData[lessonName] = currentCount;
-            localStorage.setItem(storageKey, JSON.stringify(seenData));
 
-            // Usuwamy wizualny znaczek "X nowe" z przycisku po kliknięciu
-            const accordionHeader = content.previousElementSibling;
-            const badge = accordionHeader.querySelector('.fb-badge-new');
-            if (badge) badge.remove();
-
-        } 
-        // Zwijanie
-        else {
-            content.style.display = "none";
-        }
-    }
     window.onload = inicjalizuj;
 </script>
 </body>

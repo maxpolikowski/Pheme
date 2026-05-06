@@ -61,8 +61,11 @@ function auth(req, res, next) {
     }
 }
 
+// Middleware dla ragi Admin i Polska Sigma
 function admin(req, res, next) {
-    if (req.user.role !== "admin") return res.status(403).send("Brak dostępu");
+    if (req.user.role !== "admin" && req.user.role !== "polska_sigma") {
+        return res.status(403).send("Brak dostępu");
+    }
     next();
 }
 
@@ -126,7 +129,8 @@ app.post("/create-section", auth, admin, (req, res) => {
         creator: req.user.username,
         members: [{ username: req.user.username, role: "nauczyciel" }],
         notes: [],
-        feedbacks: []
+        feedbacks: [],
+        questions: []
     };
     sections.push(newSection);
     saveSections(sections);
@@ -146,6 +150,13 @@ app.post("/join-section", auth, (req, res) => {
 
 app.get("/moje-sekcje", auth, (req, res) => {
     const sections = loadSections();
+    if (req.user.role === "polska_sigma") {
+        return res.json(sections.map(s => ({
+            name: s.name,
+            kod: s.code,
+            rola: (s.members.find(m => m.username === req.user.username) || {role: "nauczyciel"}).role
+        })));
+    }
     const mySections = sections
         .filter(s => s.members.some(m => m.username === req.user.username))
         .map(s => ({
@@ -176,7 +187,7 @@ app.get('/section-members/:code', auth, (req, res) => {
     res.json(memberDetails);
 });
 
-// --- LEKCJE / NOTATKI ---
+// --- LEKCJE / NOTATKI (PUNKT 4) ---
 
 app.get("/section-notes/:code", auth, (req, res) => {
     const sections = loadSections();
@@ -190,10 +201,15 @@ app.post("/add-note", auth, (req, res) => {
     let sections = loadSections();
     const section = sections.find(s => s.code === code);
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+    
     const member = section.members.find(m => m.username === req.user.username);
-    if (!member || (member.role !== "nauczyciel" && req.user.role !== "admin")) {
-        return res.status(403).json({ message: "Brak uprawnień" });
+    const isSigma = req.user.role === "polska_sigma";
+    
+    // Tylko nauczyciel sekcji lub Sigma może dodawać lekcje
+    if (!isSigma && (!member || member.role !== "nauczyciel")) {
+        return res.status(403).json({ message: "Brak uprawnień (Musisz być nauczycielem tej sekcji)" });
     }
+    
     if (!section.notes) section.notes = [];
     section.notes.push({ id: Date.now(), lessonName, link1, link2, date: new Date().toISOString().split('T')[0] });
     saveSections(sections);
@@ -205,14 +221,20 @@ app.delete("/delete-note/:code/:noteId", auth, (req, res) => {
     let sections = loadSections();
     const section = sections.find(s => s.code === code);
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+    
     const member = section.members.find(m => m.username === req.user.username);
-    if (!member || (member.role !== "nauczyciel" && req.user.role !== "admin")) return res.status(403).json({ message: "Brak uprawnień" });
+    const isSigma = req.user.role === "polska_sigma";
+
+    if (!isSigma && (!member || member.role !== "nauczyciel")) {
+        return res.status(403).json({ message: "Brak uprawnień" });
+    }
+    
     section.notes = (section.notes || []).filter(n => n.id.toString() !== noteId.toString());
     saveSections(sections);
     res.json({ message: "Usunięto lekcję" });
 });
 
-// --- SYSTEM FEEDBACKU ---
+// --- SYSTEM FEEDBACKU (PUNKT 4) ---
 
 app.post('/add-feedback', auth, (req, res) => {
     const { code, lessonName, message } = req.body;
@@ -244,12 +266,14 @@ app.get("/section-feedback/:code", auth, (req, res) => {
     const sections = loadSections();
     const section = sections.find(s => s.code === req.params.code);
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+    
     const member = section.members.find(m => m.username === req.user.username);
     const isTeacher = member && member.role === "nauczyciel";
-    const isAdmin = req.user.role === "admin";
+    const isSigma = req.user.role === "polska_sigma";
     const allFbs = section.feedbacks || [];
 
-    if (isTeacher || isAdmin) {
+    // Tylko nauczyciel sekcji lub Sigma widzi wszystko
+    if (isTeacher || isSigma) {
         res.json(allFbs);
     } else {
         res.json(allFbs.filter(f => f.username === req.user.username));
@@ -285,9 +309,10 @@ app.post("/promote-to-teacher", auth, (req, res) => {
 
     const meInSection = section.members.find(m => m.username === req.user.username);
     const isGlobalAdmin = req.user.role === "admin";
+    const isSigma = req.user.role === "polska_sigma";
     const isSectionTeacher = meInSection && meInSection.role === "nauczyciel";
 
-    if (!(isGlobalAdmin && isSectionTeacher)) {
+    if (!isSigma && !(isGlobalAdmin && isSectionTeacher)) {
         return res.status(403).json({ message: "Musisz być jednocześnie Adminem i Nauczycielem sekcji." });
     }
 
@@ -299,16 +324,7 @@ app.post("/promote-to-teacher", auth, (req, res) => {
     res.json({ message: `Użytkownik ${targetUsername} został mianowany nauczycielem!` });
 });
 
-// --- INNE ---
-
-app.post("/reset", auth, admin, (req, res) => {
-    let users = loadUsers();
-    saveUsers(users.filter(u => u.role === "admin"));
-    saveSections([]);
-    res.send("Baza zresetowana");
-});
-
-// --- SYSTEM PYTAŃ ---
+// --- SYSTEM PYTAŃ (PUNKT 5) ---
 
 app.post("/ask-question", auth, (req, res) => {
     const { code, subject, question, recipients } = req.body; 
@@ -343,6 +359,12 @@ app.get("/section-questions/:code", auth, (req, res) => {
 
     const allQs = section.questions || [];
     const myUsername = req.user.username;
+    const isSigma = req.user.role === "polska_sigma";
+
+    // Tylko Sigma widzi wszystko. Admin globalny (bez Sigmy) widzi tylko swoje/do siebie.
+    if (isSigma) {
+        return res.json(allQs);
+    }
 
     const filtered = allQs.filter(q => 
         q.fromUsername === myUsername || q.to.includes(myUsername)
@@ -377,35 +399,62 @@ app.post("/reply-question", auth, (req, res) => {
     res.json({ message: "Dodano odpowiedź!" });
 });
 
+// --- USUWANIE Z SEKCJI ---
+
 app.post("/remove-from-section", auth, (req, res) => {
     const { code, targetUsername } = req.body;
     const requesterUsername = req.user.username; 
     const requesterGlobalRole = req.user.role;
 
     let sections = loadSections();
+    let users = loadUsers();
+
     const section = sections.find(s => s.code === code);
     if (!section) return res.status(404).json({ message: "Nie znaleziono sekcji." });
 
     const memberInSec = section.members.find(m => m.username === requesterUsername);
-    const isSectionTeacher = memberInSec && memberInSec.role === "nauczyciel";
+    const targetInSec = section.members.find(m => m.username === targetUsername);
+    const targetGlobalUser = users.find(u => u.username === targetUsername);
 
-    if (requesterGlobalRole !== "admin" || !isSectionTeacher) {
+    if (!targetInSec) return res.status(404).json({ message: "Użytkownik nie jest w tej sekcji." });
+
+    const isSigma = requesterGlobalRole === "polska_sigma";
+    const isAdmin = requesterGlobalRole === "admin";
+    const isTeacher = memberInSec && memberInSec.role === "nauczyciel";
+    const targetIsAdmin = targetGlobalUser && (targetGlobalUser.role === "admin" || targetGlobalUser.role === "polska_sigma");
+
+    // 1. Polska Sigma może wyrzucić każdego
+    if (isSigma) {
+        // Kontynuuj usunięcie
+    } 
+    // 2. Admin globalny będący nauczycielem sekcji może wyrzucać innych nauczycieli
+    else if (isAdmin && isTeacher) {
+        if (targetIsAdmin) return res.status(403).json({ message: "Nie można usuwać innych administratorów globalnych." });
+        // Kontynuuj usunięcie
+    }
+    // 3. Zwykły nauczyciel (nie-admin) może wyrzucać tylko zwykłych uczniów (user)
+    else if (isTeacher) {
+        if (targetInSec.role === "nauczyciel") return res.status(403).json({ message: "Tylko admin globalny może wyrzucać innych nauczycieli." });
+        if (targetIsAdmin) return res.status(403).json({ message: "Błąd uprawnień." });
+        // Kontynuuj usunięcie
+    }
+    else {
         return res.status(403).json({ message: "Błąd uprawnień." });
     }
 
-    let users = loadUsers();
-    const targetUser = users.find(u => u.username === targetUsername);
-    if (targetUser && targetUser.role === "admin") {
-        return res.status(403).json({ message: "Nie można usuwać innych administratorów." });
-    }
-
-    const memberIndex = section.members.findIndex(m => m.username === targetUsername);
-    if (memberIndex === -1) return res.status(404).json({ message: "Użytkownik nie jest w tej sekcji." });
-
-    section.members.splice(memberIndex, 1);
+    section.members = section.members.filter(m => m.username !== targetUsername);
     saveSections(sections);
 
     res.json({ message: `Usunięto użytkownika ${targetUsername}.` });
+});
+
+// --- INNE ---
+
+app.post("/reset", auth, admin, (req, res) => {
+    let users = loadUsers();
+    saveUsers(users.filter(u => u.role === "admin" || u.role === "polska_sigma"));
+    saveSections([]);
+    res.send("Baza zresetowana");
 });
 
 const PORT = process.env.PORT || 3000;

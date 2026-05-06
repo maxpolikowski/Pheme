@@ -77,6 +77,17 @@
             margin: 20px 0;
             cursor: pointer;
         }
+        .sigma-btn {
+            background: linear-gradient(135deg, #ffd700, #ffb300) !important;
+            color: #000 !important;
+            border: 2px solid #b8860b !important;
+            text-transform: uppercase;
+            box-shadow: 0 4px 10px rgba(255, 215, 0, 0.4);
+            transition: transform 0.2s;
+        }
+        .sigma-btn:hover {
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body>
@@ -127,7 +138,15 @@
         document.getElementById("welcome").innerText =
             "Witaj, " + (data.name || data.username) + "!";
     });
-
+    // Dodanie przycisku Sigmy, jeśli rola się zgadza
+    if (data.role === "polska_sigma") {
+        const navMenu = document.querySelector('.nav-menu');
+        const sigmaBtn = document.createElement('button');
+        sigmaBtn.className = 'nav-btn sigma-btn';
+        sigmaBtn.innerHTML = '👑 Panel Sigmy';
+        sigmaBtn.onclick = () => window.location.href = 'panel_sigmy.html';
+        navMenu.appendChild(sigmaBtn);
+    }
     // Twoja logika losowania kaczki
     const numeryKaczek = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 67];
     const wybranyNumer = numeryKaczek[Math.floor(Math.random() * numeryKaczek.length)];
