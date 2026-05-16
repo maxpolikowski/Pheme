@@ -94,7 +94,6 @@
 
     <div class="card">
 
-        <!-- NOWE POWITANIE -->
         <h3 id="welcome">Ładowanie...</h3>
 
         <p>Wygląda na to, że pomyślnie się zalogowałeś!</p>
@@ -127,20 +126,29 @@
         document.getElementById("welcome").innerText =
             "Witaj, " + (data.name || data.username) + "!";
 
-            if (data.role === "boga") {
+        // DYNAMICZNE DODAWANIE PRZYCISKU DLA BOGA (SIGMY)
+        if (data.role === "boga") {
             const navMenu = document.querySelector(".nav-menu");
-            const godBtn = document.createElement("button");
-            godBtn.className = "nav-btn";
-            // Złoty, boski wygląd przycisku
-            godBtn.style.background = "linear-gradient(45deg, #ffd700, #ffaa00)";
-            godBtn.style.color = "#000";
-            godBtn.style.border = "2px solid #b8860b";
-            godBtn.style.boxShadow = "0 4px 10px rgba(255, 215, 0, 0.4)";
-            godBtn.innerText = "👑 Panel Sigmy";
-            godBtn.onclick = () => location.href = 'panel_sigmy.html';
             
-            // Wstaw przycisk jako przedostatni (przed "Wyloguj")
-            navMenu.insertBefore(godBtn, navMenu.lastElementChild);
+            // Zabezpieczenie przed ponownym dodaniem przycisku przy odświeżaniu danych
+            if (navMenu && !document.getElementById("god-panel-btn")) {
+                const godBtn = document.createElement("button");
+                godBtn.id = "god-panel-btn";
+                godBtn.className = "nav-btn";
+                
+                // Boski, złoty styl idealnie zachowujący strukturę Twojej klasy .nav-btn
+                godBtn.style.background = "linear-gradient(45deg, #ffd700, #ffaa00)";
+                godBtn.style.color = "#000";
+                godBtn.style.border = "2px solid #b8860b";
+                godBtn.style.fontWeight = "bold";
+                godBtn.style.cursor = "pointer";
+                
+                godBtn.innerText = "👑 Panel Sigmy";
+                godBtn.onclick = () => location.href = 'panel_sigmy.html';
+                
+                // Wstrzyknięcie przycisku bezpośrednio do Twojego menu, tuż przed przyciskiem "Wyloguj"
+                navMenu.insertBefore(godBtn, navMenu.lastElementChild);
+            }
         }
     });
 
