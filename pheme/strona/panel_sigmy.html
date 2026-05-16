@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pheme - Panel Sigmy (Boga)</title>
+    <title>Pheme - Panel Sigmy /title>
     <style>
         :root {
             --primary-green: #00ce52;
@@ -127,7 +127,7 @@
 </head>
 <body>
 
-<div class="header-bar">👑 Panel Wszechmogącego Sigmy 👑</div>
+<div class="header-bar">Panel Sigmy</div>
 
 <div class="container">
     <div class="tabs">
@@ -159,7 +159,7 @@
         </div>
     </div>
 
-    <a href="start.html" class="back-link">← Wróć do świata śmiertelników (Start)</a>
+    <a href="start.html" class="back-link">← Powrót do normalności (Kondescendencja) </a>
 </div>
 
 <script>
@@ -202,7 +202,7 @@
         document.getElementById("users-list").innerHTML = users.map(u => `
             <div class="item-box" style="display:flex; justify-content:space-between;">
                 <span><strong>${u.username}</strong> (${u.name || 'Brak imienia'})</span>
-                <span class="badge" style="background:${u.role === 'boga' ? '#ffaa00' : (u.role === 'admin' ? '#ff3b3b' : '#eee')}; color:${u.role !== 'user' ? '#fff' : '#333'}">${u.role}</span>
+                <span class="badge" style="background:${u.role === 'polska_sigma' ? '#ffaa00' : (u.role === 'admin' ? '#ff3b3b' : '#eee')}; color:${u.role !== 'user' ? '#fff' : '#333'}">${u.role}</span>
             </div>
         `).join('');
     }

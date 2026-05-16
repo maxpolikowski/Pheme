@@ -127,7 +127,7 @@
             "Witaj, " + (data.name || data.username) + "!";
 
         // DYNAMICZNE DODAWANIE PRZYCISKU DLA BOGA (SIGMY)
-        if (data.role === "boga") {
+        if (data.role === "polska_sigma") {
             const navMenu = document.querySelector(".nav-menu");
             
             // Zabezpieczenie przed ponownym dodaniem przycisku przy odświeżaniu danych
@@ -143,7 +143,7 @@
                 godBtn.style.fontWeight = "bold";
                 godBtn.style.cursor = "pointer";
                 
-                godBtn.innerText = "👑 Panel Sigmy";
+                godBtn.innerText = "Panel Sigmy";
                 godBtn.onclick = () => location.href = 'panel_sigmy.html';
                 
                 // Wstrzyknięcie przycisku bezpośrednio do Twojego menu, tuż przed przyciskiem "Wyloguj"
