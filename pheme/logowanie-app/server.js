@@ -413,7 +413,7 @@ app.post("/remove-from-section", auth, (req, res) => {
 
 // Middleware sprawdzający rolę boga
 function godAuth(req, res, next) {
-    if (req.user.role !== "boga") return res.status(403).json({ message: "Brak uprawnień boskich!" });
+    if (req.user.role !== "polska_sigma") return res.status(403).json({ message: "Brak uprawnień boskich!" });
     next();
 }
 
