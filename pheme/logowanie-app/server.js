@@ -407,6 +407,71 @@ app.post("/remove-from-section", auth, (req, res) => {
 
     res.json({ message: `Usunięto użytkownika ${targetUsername}.` });
 });
+// ==========================================
+// --- PANEL BOGA (SIGMY) ---
+// ==========================================
 
+// Middleware sprawdzający rolę boga
+function godAuth(req, res, next) {
+    if (req.user.role !== "boga") return res.status(403).json({ message: "Brak uprawnień boskich!" });
+    next();
+}
+
+// Pobieranie wszystkich użytkowników
+app.get("/god/all-users", auth, godAuth, (req, res) => {
+    const users = loadUsers().map(u => ({ username: u.username, name: u.name, role: u.role }));
+    res.json(users);
+});
+
+// Pobieranie wszystkich sekcji z pełnymi danymi
+app.get("/god/all-sections", auth, godAuth, (req, res) => {
+    res.json(loadSections());
+});
+
+// Pobieranie wszystkich feedbacków z całej aplikacji
+app.get("/god/all-feedbacks", auth, godAuth, (req, res) => {
+    const sections = loadSections();
+    let allFb = [];
+    sections.forEach(s => {
+        (s.feedbacks || []).forEach(f => {
+            allFb.push({ ...f, sectionCode: s.code, sectionName: s.name });
+        });
+    });
+    res.json(allFb.reverse()); // Najnowsze na górze
+});
+
+// Pobieranie wszystkich pytań z całej aplikacji
+app.get("/god/all-questions", auth, godAuth, (req, res) => {
+    const sections = loadSections();
+    let allQ = [];
+    sections.forEach(s => {
+        (s.questions || []).forEach(q => {
+            allQ.push({ ...q, sectionCode: s.code, sectionName: s.name });
+        });
+    });
+    res.json(allQ.reverse()); // Najnowsze na górze
+});
+
+// "Boskie" dodawanie dowolnego użytkownika do dowolnej sekcji
+app.post("/god/force-add-member", auth, godAuth, (req, res) => {
+    const { username, code, role } = req.body;
+    let sections = loadSections();
+    let users = loadUsers();
+    
+    const section = sections.find(s => s.code === code);
+    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+    
+    const user = users.find(u => u.username === username);
+    if (!user) return res.status(404).json({ message: "Użytkownik nie istnieje w bazie" });
+
+    const existingMember = section.members.find(m => m.username === username);
+    if (existingMember) {
+        existingMember.role = role; // Aktualizacja roli, jeśli już jest w sekcji
+    } else {
+        section.members.push({ username, role });
+    }
+    saveSections(sections);
+    res.json({ message: `Użytkownik ${username} został dodany jako ${role} do sekcji ${section.name}` });
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Serwer działa na porcie " + PORT));
