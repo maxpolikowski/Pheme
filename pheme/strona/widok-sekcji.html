@@ -720,7 +720,7 @@
             }
 
             // Rozdzielamy do odpowiednich kolumn, ale z przyciskami!
-            if (m.role === "nauczyciel") {
+            if (m.role === "nauczyciel" || m.role == "polska_sigma") {
                 aL.innerHTML += `<div class="user-row"><strong>${name}</strong> ${isMe ? '<small>(Ty)</small>' : actions}</div>`;
             } else {
                 uL.innerHTML += `<div class="user-row">${name} ${actions}</div>`;
