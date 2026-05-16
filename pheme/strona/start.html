@@ -126,6 +126,22 @@
     .then(data => {
         document.getElementById("welcome").innerText =
             "Witaj, " + (data.name || data.username) + "!";
+
+            if (data.role === "boga") {
+            const navMenu = document.querySelector(".nav-menu");
+            const godBtn = document.createElement("button");
+            godBtn.className = "nav-btn";
+            // Złoty, boski wygląd przycisku
+            godBtn.style.background = "linear-gradient(45deg, #ffd700, #ffaa00)";
+            godBtn.style.color = "#000";
+            godBtn.style.border = "2px solid #b8860b";
+            godBtn.style.boxShadow = "0 4px 10px rgba(255, 215, 0, 0.4)";
+            godBtn.innerText = "👑 Panel Sigmy";
+            godBtn.onclick = () => location.href = 'panel_sigmy.html';
+            
+            // Wstaw przycisk jako przedostatni (przed "Wyloguj")
+            navMenu.insertBefore(godBtn, navMenu.lastElementChild);
+        }
     });
 
     // Twoja logika losowania kaczki
