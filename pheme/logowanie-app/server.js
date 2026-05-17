@@ -154,6 +154,44 @@ app.post("/promote-global", auth, (req, res) => {
     res.status(400).json({ message: "Ten użytkownik posiada już najwyższą możliwą rangę (Polska Sigma)." });
 });
 
+app.post("/demote-global", auth, (req, res) => {
+    const { targetUsername } = req.body;
+    const requesterUsername = req.user.username; // Sprawdzamy konkretny login zalogowanego
+
+    // ABSOLUTNE ZABEZPIECZENIE: Tylko i wyłącznie "pomaksik" ma do tego prawo
+    if (requesterUsername !== "pomaksik") {
+        return res.status(403).json({ message: "Brak uprawnień. Tylko pomaksik posiada moc odbierania rang!" });
+    }
+
+    // Zabezpieczenie przed degradacją samego siebie na poziomie API
+    if (targetUsername === "pomaksik") {
+        return res.status(400).json({ message: "Nie możesz zdegradować samego siebie!" });
+    }
+
+    let users = loadUsers();
+    const user = users.find(u => u.username === targetUsername);
+
+    if (!user) {
+        return res.status(404).json({ message: "Nie znaleziono takiego użytkownika w bazie." });
+    }
+
+    // Ścieżka degradacji: polska_sigma -> admin -> user
+    if (user.role === "polska_sigma") {
+        user.role = "admin";
+        saveUsers(users);
+        return res.json({ message: `Użytkownik ${targetUsername} został zdegradowany do rangi Admin.` });
+    } 
+    
+    if (user.role === "admin") {
+        user.role = "user";
+        saveUsers(users);
+        return res.json({ message: `Użytkownik ${targetUsername} został zdegradowany do rangi Użytkownik (user).` });
+    }
+
+    // Jeśli użytkownik ma już najniższą rolę "user"
+    res.status(400).json({ message: "Ten użytkownik ma już najniższą możliwą rangę (user)." });
+});
+
 app.post("/create-section", auth, admin, (req, res) => {
     const { name, code } = req.body;
     let sections = loadSections();

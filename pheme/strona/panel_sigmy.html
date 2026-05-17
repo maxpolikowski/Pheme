@@ -166,6 +166,9 @@
     const API_URL = "https://pheme-far9.onrender.com";
     const token = localStorage.getItem("token");
 
+    // Zmienna przechowująca login aktualnie zalogowanej osoby
+    let currentUsername = "";
+
     if (!token) window.location.href = "index.html";
 
     function openTab(evt, tabName) {
@@ -187,6 +190,21 @@
     }
 
     async function loadAll() {
+        // Pobieramy tożsamość zalogowanego użytkownika, jeśli jeszcze jej nie znamy
+        if (!currentUsername) {
+            try {
+                const profileRes = await fetch(`${API_URL}/profil`, {
+                    headers: { "Authorization": "Bearer " + token }
+                });
+                if (profileRes.ok) {
+                    const profileData = await profileRes.json();
+                    currentUsername = profileData.username;
+                }
+            } catch (e) {
+                console.error("Nie udało się pobrać tożsamości profilu", e);
+            }
+        }
+
         const users = await fetchData("all-users");
         const sections = await fetchData("all-sections");
         const questions = await fetchData("all-questions");
@@ -198,15 +216,19 @@
         if(feedbacks) renderFeedbacks(feedbacks);
     }
 
-    // 🔥 ZAKTUALIZOWANA FUNKCJA: Dodano kontener na przyciski i warunek sprawdzający rolę
     function renderUsers(users) {
         document.getElementById("users-list").innerHTML = users.map(u => `
             <div class="item-box" style="display:flex; justify-content:space-between; align-items:center;">
                 <span><strong>${u.username}</strong> (${u.name || 'Brak imienia'})</span>
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span class="badge" style="background:${u.role === 'polska_sigma' ? '#ffaa00' : (u.role === 'admin' ? '#ff3b3b' : '#eee')}; color:${u.role !== 'user' ? '#fff' : '#333'}">${u.role}</span>
+                    
                     ${u.role !== 'polska_sigma' ? `
                         <button class="god-action" style="padding: 4px 10px; font-size: 0.8rem;" onclick="promoteUser('${u.username}')">Awansuj ↑</button>
+                    ` : ''}
+
+                    ${currentUsername === "pomaksik" && u.username !== "pomaksik" && u.role !== "user" ? `
+                        <button class="god-action" style="padding: 4px 10px; font-size: 0.8rem; background: #ff3b3b;" onclick="demoteUser('${u.username}')">Degraduj ↓</button>
                     ` : ''}
                 </div>
             </div>
@@ -286,14 +308,13 @@
             });
             const data = await res.json();
             alert(data.message);
-            if(res.ok) loadAll(); // Odśwież dane
+            if(res.ok) loadAll();
         } catch(e) { alert("Błąd połączenia!"); }
     }
 
-    // 🔥 NOWA FUNKCJA: Obsługuje kliknięcie przycisku awansu globalnego
     async function promoteUser(username) {
         if (!confirm(`Czy na pewno chcesz awansować użytkownika ${username} na wyższy poziom?`)) return;
- 
+
         try {
             const res = await fetch(`${API_URL}/promote-global`, {
                 method: "POST",
@@ -305,11 +326,29 @@
             });
             const data = await res.json();
             alert(data.message);
+            if (res.ok) loadAll();
+        } catch(e) { alert("Błąd serwera przy awansie!"); }
+    }
+
+    async function demoteUser(username) {
+        if (!confirm(`UWAGA! Czy na pewno chcesz ZDEGRADOWAĆ użytkownika ${username} na niższy poziom?`)) return;
+
+        try {
+            const res = await fetch(`${API_URL}/demote-global`, {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token 
+                },
+                body: JSON.stringify({ targetUsername: username })
+            });
+            const data = await res.json();
+            alert(data.message);
             if (res.ok) {
-                loadAll(); // Przeładowuje całą listę i odświeża od razu nowe odznaki (badges)
+                loadAll();
             }
         } catch(e) { 
-            alert("Błąd połączenia z serwerem podczas nadawania rangi!"); 
+            alert("Błąd połączenia z serwerem podczas odbierania rangi!"); 
         }
     }
 
