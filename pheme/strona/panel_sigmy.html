@@ -307,17 +307,44 @@
                     <strong>Członkowie (${s.members.length}):</strong> 
                     ${s.members.map(m => `${m.username} <small>(${m.role})</small>`).join(', ')}
                 </div>
-                <div class="god-form">
-                    <strong>Wymuś dodanie:</strong>
-                    <input type="text" id="add-user-${s.code}" placeholder="Login (username)">
-                    <select id="add-role-${s.code}">
-                        <option value="user">Uczeń</option>
-                        <option value="nauczyciel">Nauczyciel</option>
-                    </select>
-                    <button class="god-action" onclick="forceAddMember('${s.code}')">Dodaj</button>
+                <div class="god-form" style="display:flex; flex-wrap:wrap; justify-content:space-between;">
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <strong>Wymuś dodanie:</strong>
+                        <input type="text" id="add-user-${s.code}" placeholder="Login (username)">
+                        <select id="add-role-${s.code}">
+                            <option value="user">Uczeń</option>
+                            <option value="nauczyciel">Nauczyciel</option>
+                        </select>
+                        <button class="god-action" onclick="forceAddMember('${s.code}')">Dodaj</button>
+                    </div>
+
+                    <div style="display:flex; gap:10px; margin-top:10px;">
+                        <button class="god-action" style="background: var(--gold-boga); color: black;" onclick="window.location.href='widok-sekcji.html?kod=${s.code}'">👁️ Wejdź do sekcji</button>
+                        <button class="god-action" style="background: #ff3b3b; color: white;" onclick="usunCalaSekcje('${s.code}')">🗑️ Usuń całą sekcję</button>
+                    </div>
                 </div>
             </div>
         `).join('');
+    }
+
+    // Dodaj to zaraz pod renderSections
+    async function usunCalaSekcje(code) {
+        const input = prompt(`UWAGA! Zmierzasz zniszczyć całą sekcję ze wszystkimi wiadomościami!\n\nPrzepisz kod sekcji "${code}" aby potwierdzić niszczenie:`);
+        
+        if (input !== code) {
+            if (input !== null) alert("Kod się nie zgadza. Anulowano niszczenie.");
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_URL}/god/delete-section/${code}`, {
+                method: "DELETE",
+                headers: { "Authorization": "Bearer " + token }
+            });
+            const data = await res.json();
+            alert(data.message);
+            if (res.ok) loadAll(); // Odświeżamy listę na żywo
+        } catch(e) { alert("Błąd łączenia z serwerem podczas usuwania."); }
     }
 
     // 🔥 ZAKTUALIZOWANE RENDEROWANIE PYTAŃ: Sortowanie i weryfikacja daty "Ostatnio widziane"

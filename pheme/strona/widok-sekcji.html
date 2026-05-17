@@ -294,9 +294,29 @@
     async function inicjalizuj() {
         if (!token) window.location.href = "index.html";
         try {
-            const res = await fetch(`${API_URL}/moje-sekcje`, { headers: { "Authorization": "Bearer " + token } });
-            const sekcje = await res.json();
-            const taSekcja = sekcje.find(s => s.kod === kod);
+            // Najpierw sprawdzamy tożsamość użytkownika
+            const profRes = await fetch(`${API_URL}/profil`, { headers: { "Authorization": "Bearer " + token } });
+            const profil = await profRes.json();
+            const isGod = profil.role === "polska_sigma" || profil.role === "admin";
+
+            let taSekcja = null;
+
+            // 🌟 MAGIA SIGMY: Jeśli jesteś bogiem, wczytaj CAŁĄ BAZĘ sekcji, żeby móc wejść w dowolną (nawet jak nie należysz)
+            if (isGod) {
+                const godRes = await fetch(`${API_URL}/god/all-sections`, { headers: { "Authorization": "Bearer " + token } });
+                const wszystkieSekcjeBazy = await godRes.json();
+                taSekcja = wszystkieSekcjeBazy.find(s => s.code === kod);
+                
+                if (taSekcja) {
+                    taSekcja.kod = taSekcja.code; // ujednolicenie
+                    taSekcja.rola = "nauczyciel"; // 👁️ SYSTEM WSTRZYKUJE CI WIRTUALNĄ ROLĘ NAUCZYCIELA
+                }
+            } else {
+                // Jeśli jesteś zwykłym śmiertelnikiem, pobiera tylko Twoje przypisane sekcje
+                const res = await fetch(`${API_URL}/moje-sekcje`, { headers: { "Authorization": "Bearer " + token } });
+                const sekcje = await res.json();
+                taSekcja = sekcje.find(s => s.kod === kod);
+            }
 
             if (taSekcja) {
                 document.getElementById('section-title').innerText = taSekcja.name;
@@ -310,6 +330,9 @@
                 }
                 pobierzNotatki();
                 przygotujFeedback(taSekcja.rola);
+            } else {
+                alert("Nie masz dostępu do tej sekcji.");
+                window.location.href = "sekcje.html";
             }
         } catch (e) { console.error(e); }
     }
@@ -696,8 +719,11 @@
         const members = await res.json();
         
         const jaWsekcji = members.find(m => m.username === profil.username);
-        // Warunek wejścia: Musisz być Adminem globalnym I Nauczycielem w tej sekcji
-        const mozeZarzadzac = (profil.role === "admin" || profil.role === "polska_sigma") && (jaWsekcji && jaWsekcji.role === "nauczyciel");
+        
+        // 🔥 POPRAWA UPRAWNIEŃ: Teraz Sigma ZAWSZE może zarządzać listą (OR zamiast AND)
+        const isGod = profil.role === "admin" || profil.role === "polska_sigma";
+        const isTeacher = jaWsekcji && jaWsekcji.role === "nauczyciel";
+        const mozeZarzadzac = isGod || isTeacher;
         
         const aL = document.getElementById('admins-list');
         const uL = document.getElementById('users-list');

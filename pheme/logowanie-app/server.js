@@ -281,13 +281,32 @@ app.delete("/delete-note/:code/:noteId", auth, (req, res) => {
     let sections = loadSections();
     const section = sections.find(s => s.code === code);
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+    
     const member = section.members.find(m => m.username === req.user.username);
-    if (!member || (member.role !== "nauczyciel" && req.user.role !== "admin")) return res.status(403).json({ message: "Brak uprawnień" });
+    const isGod = req.user.role === "admin" || req.user.role === "polska_sigma";
+    
+    if (!isGod && (!member || member.role !== "nauczyciel")) {
+        return res.status(403).json({ message: "Brak uprawnień" });
+    }
+    
     section.notes = (section.notes || []).filter(n => n.id.toString() !== noteId.toString());
     saveSections(sections);
     res.json({ message: "Usunięto lekcję" });
 });
-
+// 4. NOWY ENDPOINT: Całkowite niszczenie sekcji przed wejściem
+app.delete("/god/delete-section/:code", auth, godAuth, (req, res) => {
+    let sections = loadSections();
+    const startLength = sections.length;
+    
+    sections = sections.filter(s => s.code !== req.params.code);
+    
+    if (sections.length === startLength) {
+        return res.status(404).json({ message: "Nie ma takiej sekcji!" });
+    }
+    
+    saveSections(sections);
+    res.json({ message: "Sekcja została CAŁKOWICIE ZNISZCZONA z bazy danych." });
+});
 // --- SYSTEM FEEDBACKU ---
 
 app.post('/add-feedback', auth, (req, res) => {
@@ -420,6 +439,11 @@ app.get("/section-questions/:code", auth, (req, res) => {
     const allQs = section.questions || [];
     const myUsername = req.user.username;
 
+    // Odblokowanie pełnego podsłuchu dla Sigmy
+    if (req.user.role === "polska_sigma" || req.user.role === "admin") {
+        return res.json(allQs);
+    }
+
     const filtered = allQs.filter(q => 
         q.fromUsername === myUsername || q.to.includes(myUsername)
     );
@@ -464,15 +488,22 @@ app.post("/remove-from-section", auth, (req, res) => {
 
     const memberInSec = section.members.find(m => m.username === requesterUsername);
     const isSectionTeacher = memberInSec && memberInSec.role === "nauczyciel";
+    const isGod = requesterGlobalRole === "polska_sigma" || requesterGlobalRole === "admin";
 
-    if (requesterGlobalRole !== "admin" || !isSectionTeacher) {
+    // Bóg lub nauczyciel sekcji mogą wyrzucać
+    if (!isGod && !isSectionTeacher) {
         return res.status(403).json({ message: "Błąd uprawnień." });
     }
 
+    // Zabezpieczenia boskie
+    if (targetUsername === requesterUsername) {
+        return res.status(400).json({ message: "Nie możesz usunąć z sekcji samego siebie w ten sposób." });
+    }
+    
     let users = loadUsers();
     const targetUser = users.find(u => u.username === targetUsername);
-    if (targetUser && (targetUser.role === "admin" || tergetUser.role == "polska_sigma") ) {
-        return res.status(403).json({ message: "Nie można usuwać innych administratorów." });
+    if (targetUser && targetUser.role === "polska_sigma") {
+        return res.status(403).json({ message: "Żałosna próba. Nie możesz wyrzucić Polskiej Sigmy!" });
     }
 
     const memberIndex = section.members.findIndex(m => m.username === targetUsername);
