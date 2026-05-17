@@ -115,6 +115,44 @@ app.post("/update-profile", auth, async (req, res) => {
 });
 
 // --- ENDPOINTY SEKCJI ---
+app.post("/promote-global", auth, (req, res) => {
+    const { targetUsername } = req.body;
+    const requesterRole = req.user.role;
+
+    // Tylko obecny admin lub polska_sigma może kogoś awansować
+    if (requesterRole !== "polska_sigma") {
+        return res.status(403).json({ message: "Brak globalnych uprawnień boga!" });
+    }
+
+    let users = loadUsers();
+    const user = users.find(u => u.username === targetUsername);
+
+    if (!user) {
+        return res.status(404).json({ message: "Nie znaleziono takiego użytkownika w bazie." });
+    }
+
+    // Ścieżka awansu: user -> admin -> polska_sigma
+    if (user.role === "user") {
+        user.role = "admin";
+        saveUsers(users);
+        return res.json({ message: `Użytkownik ${targetUsername} został awansowany na Admina!` });
+    } 
+    
+    if (user.role === "admin") {
+        // ZABEZPIECZENIE (Opcjonalne): Jeśli chcesz, aby TYLKO istniejąca 'polska_sigma' mogła stworzyć kolejną 'polską sigmę',
+        // odkomentuj poniższe 3 linijki. Jeśli zwykły admin też może tworzyć sigmy – zostaw tak jak jest.
+        if (requesterRole !== "polska_sigma") {
+            return res.status(403).json({ message: "Tylko obecna Polska Sigma może mianować nowe sigmy" });
+        }
+
+        user.role = "polska_sigma";
+        saveUsers(users);
+        return res.json({ message: `Użytkownik ${targetUsername} Został Polską Sigmą` });
+    }
+
+    // Jeśli użytkownik ma już rolę polska_sigma
+    res.status(400).json({ message: "Ten użytkownik posiada już najwyższą możliwą rangę (Polska Sigma)." });
+});
 
 app.post("/create-section", auth, admin, (req, res) => {
     const { name, code } = req.body;
@@ -191,7 +229,7 @@ app.post("/add-note", auth, (req, res) => {
     const section = sections.find(s => s.code === code);
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
     const member = section.members.find(m => m.username === req.user.username);
-    if (!member || (member.role !== "nauczyciel" && req.user.role !== "admin")) {
+    if (!member || (member.role !== "nauczyciel" && req.user.role !== "admin" && req.user.role !== "polska_sigma")) {
         return res.status(403).json({ message: "Brak uprawnień" });
     }
     if (!section.notes) section.notes = [];
@@ -246,7 +284,7 @@ app.get("/section-feedback/:code", auth, (req, res) => {
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
     const member = section.members.find(m => m.username === req.user.username);
     const isTeacher = member && member.role === "nauczyciel";
-    const isAdmin = req.user.role === "admin";
+    const isAdmin = (req.user.role === "admin" || req.user.role === "polska_sigma");
     const allFbs = section.feedbacks || [];
 
     if (isTeacher || isAdmin) {
@@ -284,7 +322,7 @@ app.post("/promote-to-teacher", auth, (req, res) => {
     if (!section) return res.status(404).json({ message: "Nie znaleziono sekcji" });
 
     const meInSection = section.members.find(m => m.username === req.user.username);
-    const isGlobalAdmin = req.user.role === "admin";
+    const isGlobalAdmin = (req.user.role === "admin" || req.user.role === "polska_sigma");
     const isSectionTeacher = meInSection && meInSection.role === "nauczyciel";
 
     if (!(isGlobalAdmin && isSectionTeacher)) {
@@ -303,7 +341,7 @@ app.post("/promote-to-teacher", auth, (req, res) => {
 
 app.post("/reset", auth, admin, (req, res) => {
     let users = loadUsers();
-    saveUsers(users.filter(u => u.role === "admin"));
+    saveUsers(users.filter(u => u.role === "admin" || u.role === "polska_sigma"));
     saveSections([]);
     res.send("Baza zresetowana");
 });
@@ -395,7 +433,7 @@ app.post("/remove-from-section", auth, (req, res) => {
 
     let users = loadUsers();
     const targetUser = users.find(u => u.username === targetUsername);
-    if (targetUser && targetUser.role === "admin") {
+    if (targetUser && (targetUser.role === "admin" || tergetUser.role == "polska_sigma") ) {
         return res.status(403).json({ message: "Nie można usuwać innych administratorów." });
     }
 

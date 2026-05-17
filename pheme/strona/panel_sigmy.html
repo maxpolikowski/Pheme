@@ -198,11 +198,17 @@
         if(feedbacks) renderFeedbacks(feedbacks);
     }
 
+    // 🔥 ZAKTUALIZOWANA FUNKCJA: Dodano kontener na przyciski i warunek sprawdzający rolę
     function renderUsers(users) {
         document.getElementById("users-list").innerHTML = users.map(u => `
-            <div class="item-box" style="display:flex; justify-content:space-between;">
+            <div class="item-box" style="display:flex; justify-content:space-between; align-items:center;">
                 <span><strong>${u.username}</strong> (${u.name || 'Brak imienia'})</span>
-                <span class="badge" style="background:${u.role === 'polska_sigma' ? '#ffaa00' : (u.role === 'admin' ? '#ff3b3b' : '#eee')}; color:${u.role !== 'user' ? '#fff' : '#333'}">${u.role}</span>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span class="badge" style="background:${u.role === 'polska_sigma' ? '#ffaa00' : (u.role === 'admin' ? '#ff3b3b' : '#eee')}; color:${u.role !== 'user' ? '#fff' : '#333'}">${u.role}</span>
+                    ${u.role !== 'polska_sigma' ? `
+                        <button class="god-action" style="padding: 4px 10px; font-size: 0.8rem;" onclick="promoteUser('${u.username}')">Awansuj ↑</button>
+                    ` : ''}
+                </div>
             </div>
         `).join('');
     }
@@ -282,6 +288,29 @@
             alert(data.message);
             if(res.ok) loadAll(); // Odśwież dane
         } catch(e) { alert("Błąd połączenia!"); }
+    }
+
+    // 🔥 NOWA FUNKCJA: Obsługuje kliknięcie przycisku awansu globalnego
+    async function promoteUser(username) {
+        if (!confirm(`Czy na pewno chcesz awansować użytkownika ${username} na wyższy poziom?`)) return;
+
+        try {
+            const res = await fetch(`${API_URL}/promote-global`, {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token 
+                },
+                body: JSON.stringify({ targetUsername: username })
+            });
+            const data = await res.json();
+            alert(data.message);
+            if (res.ok) {
+                loadAll(); // Przeładowuje całą listę i odświeża od razu nowe odznaki (badges)
+            }
+        } catch(e) { 
+            alert("Błąd połączenia z serwerem podczas nadawania rangi!"); 
+        }
     }
 
     window.onload = loadAll;
