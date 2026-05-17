@@ -697,7 +697,7 @@
         
         const jaWsekcji = members.find(m => m.username === profil.username);
         // Warunek wejścia: Musisz być Adminem globalnym I Nauczycielem w tej sekcji
-        const mozeZarzadzac = profil.role === "admin" && (jaWsekcji && jaWsekcji.role === "nauczyciel");
+        const mozeZarzadzac = (profil.role === "admin" || profil.role === "polska_sigma") && (jaWsekcji && jaWsekcji.role === "nauczyciel");
         
         const aL = document.getElementById('admins-list');
         const uL = document.getElementById('users-list');
