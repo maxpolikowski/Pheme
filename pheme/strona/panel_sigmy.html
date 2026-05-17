@@ -293,7 +293,7 @@
     // 🔥 NOWA FUNKCJA: Obsługuje kliknięcie przycisku awansu globalnego
     async function promoteUser(username) {
         if (!confirm(`Czy na pewno chcesz awansować użytkownika ${username} na wyższy poziom?`)) return;
-
+ 
         try {
             const res = await fetch(`${API_URL}/promote-global`, {
                 method: "POST",
