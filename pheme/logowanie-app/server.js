@@ -62,7 +62,7 @@ function auth(req, res, next) {
 }
 
 function admin(req, res, next) {
-    if (req.user.role !== "admin") return res.status(403).send("Brak dostępu");
+    if (req.user.role !== "admin" && req.user.role !== "polska_sigma") return res.status(403).send("Brak dostępu");
     next();
 }
 
