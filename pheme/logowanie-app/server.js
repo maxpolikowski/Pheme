@@ -205,6 +205,7 @@ app.post("/create-section", auth, admin, (req, res) => {
         feedbacks: []
     };
     sections.push(newSection);
+    saveSections(sections);
     res.json({ message: "Sekcja utworzona pomyślnie!", code });
 });
 
@@ -214,10 +215,6 @@ app.post("/join-section", auth, (req, res) => {
     const section = sections.find(s => s.code === code);
     if (!section) return res.status(404).json({ message: "Zły kod sekcji" });
     if (section.members.find(m => m.username === req.user.username)) return res.status(400).json({ message: "Już tu jesteś!" });
-
-    if (section.joinEnabled === false) {
-    return res.status(403).json({ message: "Dołączanie do tej sekcji zostało zablokowane przez nauczyciela." });
-    }
     section.members.push({ username: req.user.username, role: "user" });
     saveSections(sections);
     res.json({ message: "Dołączono do sekcji: " + section.name });
@@ -625,38 +622,6 @@ app.post("/god/force-add-member", auth, godAuth, (req, res) => {
     }
     saveSections(sections);
     res.json({ message: `Użytkownik ${username} został dodany jako ${role} do sekcji ${section.name}` });
-});
-// Przełączanie możliwości dołączania do sekcji (tylko dla nauczyciela sekcji)
-app.post("/toggle-section-join", auth, (req, res) => {
-    const { code } = req.body;
-    let sections = loadSections();
-    const section = sections.find(s => s.code === code);
-    
-    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
-
-    // Pobranie nazwy użytkownika z tokenu (dostosuj req.user.username jeśli u Ciebie middleware nazywa to inaczej)
-    const currentUsername = req.user ? req.user.username : req.username;
-
-    // Sprawdzenie, czy ten użytkownik jest nauczycielem w tej konkretnej sekcji
-    const member = section.members.find(m => m.username === currentUsername);
-    if (!member || member.role !== "nauczyciel") {
-        return res.status(403).json({ message: "Brak uprawnień. Tylko nauczyciel tej sekcji może zmieniać jej status." });
-    }
-
-    // Przełączenie stanu (jeśli pole nie istniało, domyślnie sekcja była otwarta (true), więc zmieniamy na false)
-    section.joinEnabled = section.joinEnabled !== false ? false : true;
-
-    // Zapis zmian do pliku json
-    if (typeof saveSections === "function") {
-        saveSections(sections);
-    } else {
-        fs.writeFileSync(SECTIONS_FILE, JSON.stringify(sections, null, 2));
-    }
-
-    res.json({ 
-        message: section.joinEnabled ? "Dołączanie do sekcji zostało WŁĄCZONE." : "Dołączanie do sekcji zostało WYŁĄCZONE.",
-        joinEnabled: section.joinEnabled 
-    });
 });
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("Serwer działa na porcie " + PORT));

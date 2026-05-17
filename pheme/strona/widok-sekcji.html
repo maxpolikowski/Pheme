@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
@@ -233,9 +233,7 @@
 <body>
 
 <div class="header-bar">Pheme: <span id="section-title">Ładowanie...</span></div>
-<button id="toggle-join-btn" onclick="toggleJoin()" style="display: none; position: absolute; top: 12px; left: 20px; z-index: 1000; padding: 8px 14px; font-size: 0.9rem; font-weight: bold; border: none; border-radius: 5px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.15); transition: all 0.2s;">
-    Ładowanie statusu...
-</button>
+
 <div class="container">
     <div id="section-code-badge" class="section-badge">
         Kod sekcji: <span id="display-kod"></span>
@@ -319,22 +317,7 @@
                 const sekcje = await res.json();
                 taSekcja = sekcje.find(s => s.kod === kod);
             }
-            
-            // --- WKLEJ TO WEWNĄTRZ FUNKCJI POBIERAJĄCEJ DANE SEKCJI ---
-            // (zaraz po tym, jak otrzymasz udaną odpowiedź z serwera)
 
-            // Sprawdzamy, czy aktualny użytkownik (myUsername) ma rolę nauczyciela w tej sekcji
-            const iAmTeacher = data.members.some(m => m.username === myUsername && m.role === "nauczyciel");
-
-            if (iAmTeacher) {
-                const btn = document.getElementById("toggle-join-btn");
-                btn.style.display = "block"; // Pokazujemy przycisk tylko nauczycielowi
-                
-                // Zapisujemy aktualny stan (jeśli w bazie nie ma jeszcze pola joinEnabled, domyślnie sekcja jest otwarta = true)
-                window.currentJoinEnabled = data.joinEnabled !== false; 
-                aktualizujWygladPrzycisku();
-            }
-            
             if (taSekcja) {
                 document.getElementById('section-title').innerText = taSekcja.name;
                 const czyNauczyciel = taSekcja.rola === "nauczyciel";
@@ -729,19 +712,22 @@
 
     async function pobierzCzlonkow() {
     try {
-            const profRes = await fetch(`${API_URL}/profil`, { headers: { "Authorization": "Bearer " + token } });
-            const profil = await profRes.json();
-            
-            const res = await fetch(`${API_URL}/section-members/${kod}`, { headers: { "Authorization": "Bearer " + token } });
-            const members = await res.json();
-            
-            const jaWsekcji = members.find(m => m.username === profil.username);
-            // Warunek wejścia: Musisz być Adminem globalnym I Nauczycielem w tej sekcji
-            const mozeZarzadzac = (profil.role === "admin" || profil.role === "polska_sigma") && (jaWsekcji && jaWsekcji.role === "nauczyciel");
-            
-            const aL = document.getElementById('admins-list');
-            const uL = document.getElementById('users-list');
-            aL.innerHTML = ""; uL.innerHTML = "";
+        const profRes = await fetch(`${API_URL}/profil`, { headers: { "Authorization": "Bearer " + token } });
+        const profil = await profRes.json();
+        
+        const res = await fetch(`${API_URL}/section-members/${kod}`, { headers: { "Authorization": "Bearer " + token } });
+        const members = await res.json();
+        
+        const jaWsekcji = members.find(m => m.username === profil.username);
+        
+        // 🔥 POPRAWA UPRAWNIEŃ: Teraz Sigma ZAWSZE może zarządzać listą (OR zamiast AND)
+        const isGod = profil.role === "admin" || profil.role === "polska_sigma";
+        const isTeacher = jaWsekcji && jaWsekcji.role === "nauczyciel";
+        const mozeZarzadzac = isGod || isTeacher;
+        
+        const aL = document.getElementById('admins-list');
+        const uL = document.getElementById('users-list');
+        aL.innerHTML = ""; uL.innerHTML = "";
 
         members.forEach(m => {
             const name = m.name || m.username;
@@ -815,8 +801,7 @@
     
     // Odświeżamy kolory bez przeładowania całej strony (opcjonalnie)
     przygotujPytania(); 
-}
-        function toggleFeedback(safeId, lessonName, currentCount, myUsername) {
+}function toggleFeedback(safeId, lessonName, currentCount, myUsername) {
         const content = document.getElementById(safeId);
         
         // Rozwijanie
@@ -838,44 +823,6 @@
         // Zwijanie
         else {
             content.style.display = "none";
-        }
-    }
-    // Funkcja zmieniająca kolor i tekst przycisku w lewym rogu
-    function aktualizujWygladPrzycisku() {
-        const btn = document.getElementById("toggle-join-btn");
-        if (!btn) return;
-        if (window.currentJoinEnabled) {
-            btn.innerText = "Zablokuj dołączanie 🔓";
-            btn.style.background = "#ff3b3b"; // Czerwony
-            btn.style.color = "white";
-        } else {
-            btn.innerText = "Odblokuj dołączanie 🔒";
-            btn.style.background = "#00ce52"; // Zielony
-            btn.style.color = "white";
-        }
-    }
-
-    // Funkcja wysyłająca żądanie zmiany stanu do serwera
-    async function toggleJoin() {
-        try {
-            const res = await fetch(`${API_URL}/toggle-section-join`, {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token
-                },
-                body: JSON.stringify({ code: kod })
-            });
-            
-            const responseData = await res.json();
-            alert(responseData.message);
-            
-            if (res.ok) {
-                window.currentJoinEnabled = responseData.joinEnabled;
-                aktualizujWygladPrzycisku();
-            }
-        } catch(e) {
-            alert("Błąd połączenia z serwerem przy próbie zmiany statusu dołączania.");
         }
     }
     window.onload = inicjalizuj;
