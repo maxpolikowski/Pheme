@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pheme - Panel Sigmy </title>
+    <title>Pheme - Panel Sigmy</title>
     <style>
         :root {
             --primary-green: #00ce52;
@@ -60,6 +60,9 @@
             font-weight: bold;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .tab-btn.active { background: var(--gold-boga); color: #000; }
@@ -84,6 +87,7 @@
             border-radius: 10px;
             border-left: 5px solid var(--gold-boga);
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: 0.2s;
         }
 
         .god-form {
@@ -121,8 +125,36 @@
             font-size: 0.8rem;
             font-weight: bold;
         }
+        
+        .badge-new {
+            background: #ff3b3b;
+            color: white;
+        }
+
+        .badge-edited {
+            background: #ff9800;
+            color: white;
+        }
+
+        .badge-count {
+            background: #ff3b3b;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 8px;
+            font-size: 0.8rem;
+        }
 
         .back-link { margin-top: 20px; display: block; color: #888; text-decoration: none; text-align: center; }
+
+        .header-with-action {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -133,8 +165,8 @@
     <div class="tabs">
         <button class="tab-btn active" onclick="openTab(event, 'sekcje')">Wszystkie Sekcje</button>
         <button class="tab-btn" onclick="openTab(event, 'uzytkownicy')">Użytkownicy</button>
-        <button class="tab-btn" onclick="openTab(event, 'pytania')">Pytania / Konwersacje</button>
-        <button class="tab-btn" onclick="openTab(event, 'feedback')">Ostatnie Feedbacki</button>
+        <button class="tab-btn" id="tab-btn-pytania" onclick="openTab(event, 'pytania')">Pytania / Konwersacje</button>
+        <button class="tab-btn" id="tab-btn-feedback" onclick="openTab(event, 'feedback')">Ostatnie Feedbacki</button>
     </div>
 
     <div class="content-card">
@@ -149,12 +181,18 @@
         </div>
 
         <div id="pytania" class="tab-content">
-            <h2>Globalny podgląd konwersacji</h2>
+            <div class="header-with-action">
+                <h2 id="q-header" style="margin:0;">Globalny podgląd konwersacji</h2>
+                <button class="god-action" onclick="markQuestionsRead()">✔ Oznacz wszystkie jako przeczytane</button>
+            </div>
             <div id="questions-list">Ładowanie...</div>
         </div>
 
         <div id="feedback" class="tab-content">
-            <h2>Globalny podgląd opinii</h2>
+            <div class="header-with-action">
+                <h2 id="f-header" style="margin:0;">Globalny podgląd opinii</h2>
+                <button class="god-action" onclick="markFeedbacksRead()">✔ Oznacz wszystkie jako przeczytane</button>
+            </div>
             <div id="feedbacks-list">Ładowanie...</div>
         </div>
     </div>
@@ -166,8 +204,11 @@
     const API_URL = "https://pheme-far9.onrender.com";
     const token = localStorage.getItem("token");
 
-    // Zmienna przechowująca login aktualnie zalogowanej osoby
     let currentUsername = "";
+    
+    // Zmienne globalne przechowujące tablice ułatwiające odświeżanie
+    let globalQuestions = [];
+    let globalFeedbacks = [];
 
     if (!token) window.location.href = "index.html";
 
@@ -189,20 +230,27 @@
         return await res.json();
     }
 
+    // 🕒 Funkcja pomocnicza: Zamienia polską datę (DD.MM.YYYY, HH:mm:ss) na timestamp (czas w milisekundach), co ułatwia sortowanie
+    function parseDateToTs(dateStr) {
+        if (!dateStr) return 0;
+        try {
+            dateStr = dateStr.replace(/\u202F/g, ' '); 
+            const parts = dateStr.split(', ');
+            if (parts.length !== 2) return new Date(dateStr).getTime() || 0;
+            const [d, m, y] = parts[0].split('.');
+            const [hr, min, sec] = parts[1].split(':');
+            return new Date(y, m - 1, d, hr, min, sec).getTime();
+        } catch (e) {
+            return 0;
+        }
+    }
+
     async function loadAll() {
-        // Pobieramy tożsamość zalogowanego użytkownika, jeśli jeszcze jej nie znamy
         if (!currentUsername) {
             try {
-                const profileRes = await fetch(`${API_URL}/profil`, {
-                    headers: { "Authorization": "Bearer " + token }
-                });
-                if (profileRes.ok) {
-                    const profileData = await profileRes.json();
-                    currentUsername = profileData.username;
-                }
-            } catch (e) {
-                console.error("Nie udało się pobrać tożsamości profilu", e);
-            }
+                const profileRes = await fetch(`${API_URL}/profil`, { headers: { "Authorization": "Bearer " + token } });
+                if (profileRes.ok) currentUsername = (await profileRes.json()).username;
+            } catch (e) { console.error("Nie udało się pobrać tożsamości", e); }
         }
 
         const users = await fetchData("all-users");
@@ -212,8 +260,27 @@
 
         if(users) renderUsers(users);
         if(sections) renderSections(sections);
-        if(questions) renderQuestions(questions);
-        if(feedbacks) renderFeedbacks(feedbacks);
+        
+        if(questions) {
+            globalQuestions = questions;
+            renderQuestions(globalQuestions);
+        }
+        if(feedbacks) {
+            globalFeedbacks = feedbacks;
+            renderFeedbacks(globalFeedbacks);
+        }
+    }
+
+    // 🔥 Funkcja czyszcząca powiadomienia Pytań
+    function markQuestionsRead() {
+        localStorage.setItem('god_seen_questions', Date.now());
+        renderQuestions(globalQuestions);
+    }
+
+    // 🔥 Funkcja czyszcząca powiadomienia Feedbacków
+    function markFeedbacksRead() {
+        localStorage.setItem('god_seen_feedbacks', Date.now());
+        renderFeedbacks(globalFeedbacks);
     }
 
     function renderUsers(users) {
@@ -222,14 +289,8 @@
                 <span><strong>${u.username}</strong> (${u.name || 'Brak imienia'})</span>
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span class="badge" style="background:${u.role === 'polska_sigma' ? '#ffaa00' : (u.role === 'admin' ? '#ff3b3b' : '#eee')}; color:${u.role !== 'user' ? '#fff' : '#333'}">${u.role}</span>
-                    
-                    ${u.role !== 'polska_sigma' ? `
-                        <button class="god-action" style="padding: 4px 10px; font-size: 0.8rem;" onclick="promoteUser('${u.username}')">Awansuj ↑</button>
-                    ` : ''}
-
-                    ${currentUsername === "pomaksik" && u.username !== "pomaksik" && u.role !== "user" ? `
-                        <button class="god-action" style="padding: 4px 10px; font-size: 0.8rem; background: #ff00cc;" onclick="demoteUser('${u.username}')">Degraduj ↓</button>
-                    ` : ''}
+                    ${u.role !== 'polska_sigma' ? `<button class="god-action" style="padding: 4px 10px; font-size: 0.8rem;" onclick="promoteUser('${u.username}')">Awansuj ↑</button>` : ''}
+                    ${currentUsername === "pomaksik" && u.username !== "pomaksik" && u.role !== "user" ? `<button class="god-action" style="padding: 4px 10px; font-size: 0.8rem; background: #ff00cc;" onclick="demoteUser('${u.username}')">Degraduj ↓</button>` : ''}
                 </div>
             </div>
         `).join('');
@@ -259,51 +320,106 @@
         `).join('');
     }
 
+    // 🔥 ZAKTUALIZOWANE RENDEROWANIE PYTAŃ: Sortowanie i weryfikacja daty "Ostatnio widziane"
     function renderQuestions(questions) {
-        document.getElementById("questions-list").innerHTML = questions.map(q => `
-            <div class="item-box" style="border-left-color: purple;">
-                <div style="display:flex; justify-content:space-between;">
-                    <span class="badge">${q.sectionName}</span>
-                    <small>${q.date}</small>
+        const lastSeen = parseInt(localStorage.getItem('god_seen_questions') || '0');
+        
+        // Obliczamy max aktywność (najnowsza data postu ATAKŻE każdej z odpowiedzi w nim zawartych)
+        questions.forEach(q => {
+            let maxTs = parseDateToTs(q.date);
+            if (q.replies && q.replies.length > 0) {
+                q.replies.forEach(r => {
+                    const rTs = parseDateToTs(r.date);
+                    if (rTs > maxTs) maxTs = rTs;
+                });
+            }
+            q.lastActivityTs = maxTs;
+        });
+
+        // Sortujemy: najnowsza aktywność na samej górze
+        questions.sort((a, b) => b.lastActivityTs - a.lastActivityTs);
+
+        // Liczymy ile jest "nowych" (czyli takich których data ostatniej aktywności jest większa od daty wziętej z przycisku Oznacz Przeczytane)
+        const newCount = questions.filter(q => q.lastActivityTs > lastSeen).length;
+
+        // Aktualizujemy Nagłówek w Zakładce
+        document.getElementById("q-header").innerHTML = `Globalny podgląd konwersacji ${newCount > 0 ? `<span style="color:#ff3b3b; font-size:1.2rem;">(${newCount} nowych)</span>` : ''}`;
+        
+        // Aktualizujemy Przycisk Zakładki
+        const tabBtn = document.getElementById("tab-btn-pytania");
+        tabBtn.innerHTML = `Pytania / Konwersacje ${newCount > 0 ? `<span class="badge-count">${newCount}</span>` : ''}`;
+
+        document.getElementById("questions-list").innerHTML = questions.map(q => {
+            const isNew = q.lastActivityTs > lastSeen;
+            return `
+                <div class="item-box" style="border-left-color: purple; ${isNew ? 'background-color: #fff4f4; border: 1px solid #ff3b3b;' : ''}">
+                    <div style="display:flex; justify-content:space-between;">
+                        <div>
+                            <span class="badge">${q.sectionName}</span>
+                            ${isNew ? '<span class="badge badge-new">NOWA AKTYWNOŚĆ</span>' : ''}
+                        </div>
+                        <small>${q.date}</small>
+                    </div>
+                    <h4 style="margin: 10px 0 5px 0;">Temat: ${q.subject}</h4>
+                    <div style="font-size:0.9rem; margin-bottom: 5px;">
+                        <strong>Od:</strong> ${q.from} | <strong>Do:</strong> ${q.to.join(', ')}
+                    </div>
+                    <p style="margin:0; background:white; padding:10px; border-radius:5px;">${q.text}</p>
+                    <small style="color:#888;">Odpowiedzi: ${q.replies ? q.replies.length : 0}</small>
                 </div>
-                <h4 style="margin: 10px 0 5px 0;">Temat: ${q.subject}</h4>
-                <div style="font-size:0.9rem; margin-bottom: 5px;">
-                    <strong>Od:</strong> ${q.from} | <strong>Do:</strong> ${q.to.join(', ')}
-                </div>
-                <p style="margin:0; background:white; padding:10px; border-radius:5px;">${q.text}</p>
-                <small style="color:#888;">Odpowiedzi: ${q.replies ? q.replies.length : 0}</small>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
+    // 🔥 ZAKTUALIZOWANE RENDEROWANIE OPINII: Sortowanie i weryfikacja daty "Ostatnio widziane"
     function renderFeedbacks(feedbacks) {
-        document.getElementById("feedbacks-list").innerHTML = feedbacks.map(f => `
-            <div class="item-box" style="border-left-color: #007bff;">
-                <div style="display:flex; justify-content:space-between;">
-                    <span class="badge">${f.sectionName} - ${f.lessonName}</span>
-                    <small>${f.date}</small>
+        const lastSeen = parseInt(localStorage.getItem('god_seen_feedbacks') || '0');
+        
+        feedbacks.forEach(f => {
+            f.lastActivityTs = parseDateToTs(f.date);
+        });
+
+        // Sortujemy
+        feedbacks.sort((a, b) => b.lastActivityTs - a.lastActivityTs);
+
+        const newCount = feedbacks.filter(f => f.lastActivityTs > lastSeen).length;
+
+        // Aktualizujemy Nagłówek w Zakładce
+        document.getElementById("f-header").innerHTML = `Globalny podgląd opinii ${newCount > 0 ? `<span style="color:#ff3b3b; font-size:1.2rem;">(${newCount} nowych)</span>` : ''}`;
+        
+        // Aktualizujemy Przycisk Zakładki
+        const tabBtn = document.getElementById("tab-btn-feedback");
+        tabBtn.innerHTML = `Ostatnie Feedbacki ${newCount > 0 ? `<span class="badge-count">${newCount}</span>` : ''}`;
+
+        document.getElementById("feedbacks-list").innerHTML = feedbacks.map(f => {
+            const isNew = f.lastActivityTs > lastSeen;
+            return `
+                <div class="item-box" style="border-left-color: #007bff; ${isNew ? 'background-color: #eef7ff; border: 1px solid #007bff;' : ''}">
+                    <div style="display:flex; justify-content:space-between;">
+                        <div>
+                            <span class="badge">${f.sectionName} - ${f.lessonName}</span>
+                            ${isNew && !f.edited ? '<span class="badge badge-new">NOWE</span>' : ''}
+                            ${isNew && f.edited ? '<span class="badge badge-edited">EDYTOWANE</span>' : ''}
+                        </div>
+                        <small>${f.date}</small>
+                    </div>
+                    <div style="margin-top: 10px; font-size:0.9rem;">
+                        <strong>Autor:</strong> ${f.author || f.username} ${f.edited ? '<small style="color:#ff9800; font-weight:bold;">(edytowano)</small>' : ''}
+                    </div>
+                    <p style="margin:5px 0 0 0; background:white; padding:10px; border-radius:5px; white-space:pre-wrap;">${f.message}</p>
                 </div>
-                <div style="margin-top: 10px; font-size:0.9rem;">
-                    <strong>Autor:</strong> ${f.author || f.username} ${f.edited ? '<small style="color:#ff9800">(edytowano)</small>' : ''}
-                </div>
-                <p style="margin:5px 0 0 0; background:white; padding:10px; border-radius:5px; white-space:pre-wrap;">${f.message}</p>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     async function forceAddMember(code) {
         const username = document.getElementById(`add-user-${code}`).value.trim();
         const role = document.getElementById(`add-role-${code}`).value;
-
         if(!username) return alert("Wpisz login użytkownika!");
-
         try {
             const res = await fetch(`${API_URL}/god/force-add-member`, {
                 method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token 
-                },
+                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
                 body: JSON.stringify({ code, username, role })
             });
             const data = await res.json();
@@ -313,15 +429,11 @@
     }
 
     async function promoteUser(username) {
-        if (!confirm(`Czy na pewno chcesz awansować użytkownika ${username} na wyższy poziom?`)) return;
-
+        if (!confirm(`Czy na pewno chcesz awansować użytkownika ${username}?`)) return;
         try {
             const res = await fetch(`${API_URL}/promote-global`, {
                 method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token 
-                },
+                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
                 body: JSON.stringify({ targetUsername: username })
             });
             const data = await res.json();
@@ -331,25 +443,17 @@
     }
 
     async function demoteUser(username) {
-        if (!confirm(`UWAGA! Czy na pewno chcesz ZDEGRADOWAĆ użytkownika ${username} na niższy poziom?`)) return;
-
+        if (!confirm(`UWAGA! Czy na pewno chcesz ZDEGRADOWAĆ użytkownika ${username}?`)) return;
         try {
             const res = await fetch(`${API_URL}/demote-global`, {
                 method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token 
-                },
+                headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
                 body: JSON.stringify({ targetUsername: username })
             });
             const data = await res.json();
             alert(data.message);
-            if (res.ok) {
-                loadAll();
-            }
-        } catch(e) { 
-            alert("Błąd połączenia z serwerem podczas odbierania rangi!"); 
-        }
+            if (res.ok) loadAll();
+        } catch(e) { alert("Błąd odbierania rangi!"); }
     }
 
     window.onload = loadAll;
