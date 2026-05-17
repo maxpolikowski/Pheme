@@ -291,6 +291,8 @@
                     <span class="badge" style="background:${u.role === 'polska_sigma' ? '#ffaa00' : (u.role === 'admin' ? '#ff3b3b' : '#eee')}; color:${u.role !== 'user' ? '#fff' : '#333'}">${u.role}</span>
                     ${u.role !== 'polska_sigma' ? `<button class="god-action" style="padding: 4px 10px; font-size: 0.8rem;" onclick="promoteUser('${u.username}')">Awansuj ↑</button>` : ''}
                     ${currentUsername === "pomaksik" && u.username !== "pomaksik" && u.role !== "user" ? `<button class="god-action" style="padding: 4px 10px; font-size: 0.8rem; background: #ff00cc;" onclick="demoteUser('${u.username}')">Degraduj ↓</button>` : ''}
+                    ${u.username !== currentUsername && u.username !== "pomaksik" && u.role !== "polska_sigma"? `
+            <button class="god-action" onclick="deleteUser('${u.username}')" style="padding: 4px 10px; font-size: 0.8rem; background: #ff3b3b; color: white;">Usuń konto</button>` : ''}
                 </div>
             </div>
         `).join('');
@@ -468,7 +470,28 @@
             if (res.ok) loadAll();
         } catch(e) { alert("Błąd serwera przy awansie!"); }
     }
+    // 🔥 NOWA FUNKCJA: Obsługuje usuwanie konta użytkownika
+    async function deleteUser(username) {
+        if (!confirm(`UWAGA! Czy na pewno chcesz TRWALE USUNĄĆ użytkownika ${username} z bazy danych?`)) return;
 
+        try {
+            const res = await fetch(`${API_URL}/god/delete-user`, {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json", 
+                    "Authorization": "Bearer " + token 
+                },
+                body: JSON.stringify({ targetUsername: username })
+            });
+            const data = await res.json();
+            alert(data.message);
+            if (res.ok) {
+                loadAll(); // Przeładowuje listę, aby zniknął usunięty użytkownik
+            }
+        } catch(e) { 
+            alert("Błąd połączenia z serwerem podczas usuwania użytkownika!"); 
+        }
+    }
     async function demoteUser(username) {
         if (!confirm(`UWAGA! Czy na pewno chcesz ZDEGRADOWAĆ użytkownika ${username}?`)) return;
         try {

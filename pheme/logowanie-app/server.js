@@ -558,7 +558,50 @@ app.get("/god/all-questions", auth, godAuth, (req, res) => {
     });
     res.json(allQ.reverse()); // Najnowsze na górze
 });
+// 🔥 NOWY ENDPOINT: Usuwanie użytkownika z całej aplikacji z poziomu Panelu Sigmy
+app.post("/god/delete-user", auth, godAuth, (req, res) => {
+    const { targetUsername } = req.body;
 
+    let users = loadUsers();
+    const userIndex = users.findIndex(u => u.username === targetUsername);
+
+    if (userIndex === -1) {
+        return res.status(404).json({ message: "Użytkownik nie istnieje w bazie." });
+    }
+
+    // Zabezpieczenie przed usunięciem administratora / innej sigmy
+    if (users[userIndex].role === "admin") {
+        return res.status(403).json({ message: "Nie można usuwać innych administratorów." });
+    }
+
+    // Usunięcie użytkownika z tablicy
+    users.splice(userIndex, 1);
+
+    // Zapisanie zaktualizowanej listy użytkowników
+    if (typeof saveUsers === "function") {
+        saveUsers(users);
+    } else {
+        fs.writeFileSync(DB_FILE, JSON.stringify(users, null, 2));
+    }
+
+    // Czyszczenie sekcji – usuwamy użytkownika z każdej sekcji, w której się znajdował
+    try {
+        let sections = loadSections();
+        sections.forEach(s => {
+            s.members = s.members.filter(m => m.username !== targetUsername);
+        });
+        
+        if (typeof saveSections === "function") {
+            saveSections(sections);
+        } else {
+            fs.writeFileSync(SECTIONS_FILE, JSON.stringify(sections, null, 2));
+        }
+    } catch (e) {
+        console.error("Błąd podczas usuwania użytkownika z sekcji:", e);
+    }
+
+    res.json({ message: `Użytkownik ${targetUsername} został pomyślnie usunięty.` });
+});
 // "Boskie" dodawanie dowolnego użytkownika do dowolnej sekcji
 app.post("/god/force-add-member", auth, godAuth, (req, res) => {
     const { username, code, role } = req.body;
