@@ -214,6 +214,12 @@ app.post("/join-section", auth, (req, res) => {
     let sections = loadSections();
     const section = sections.find(s => s.code === code);
     if (!section) return res.status(404).json({ message: "Zły kod sekcji" });
+    
+    // 🔥 NOWE: Sprawdzenie blokady dołączania
+    if (section.joinEnabled === false) {
+        return res.status(403).json({ message: "Dołączanie do tej sekcji zostało zablokowane przez nauczyciela." });
+    }
+
     if (section.members.find(m => m.username === req.user.username)) return res.status(400).json({ message: "Już tu jesteś!" });
     section.members.push({ username: req.user.username, role: "user" });
     saveSections(sections);
@@ -227,7 +233,8 @@ app.get("/moje-sekcje", auth, (req, res) => {
         .map(s => ({
             name: s.name,
             kod: s.code,
-            rola: s.members.find(m => m.username === req.user.username).role
+            rola: s.members.find(m => m.username === req.user.username).role,
+            joinEnabled: s.joinEnabled !== false // Wysyłamy stan do frontendu
         }));
     res.json(mySections);
 });
@@ -260,7 +267,28 @@ app.get("/section-notes/:code", auth, (req, res) => {
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
     res.json(section.notes || []);
 });
+// Przełączanie blokady dołączania do sekcji (tylko dla nauczyciela sekcji)
+app.post("/toggle-section-join", auth, (req, res) => {
+    const { code } = req.body;
+    let sections = loadSections();
+    const section = sections.find(s => s.code === code);
+    
+    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje." });
+    
+    // Tylko nauczyciel TEJ sekcji może to kliknąć
+    const member = section.members.find(m => m.username === req.user.username);
+    if (!member || member.role !== "nauczyciel") {
+        return res.status(403).json({ message: "Brak uprawnień. Tylko nauczyciel sekcji może to zrobić." });
+    }
 
+    section.joinEnabled = section.joinEnabled === false ? true : false;
+    saveSections(sections);
+
+    res.json({ 
+        message: section.joinEnabled ? "Odblokowano dołączanie 🔓" : "Zablokowano dołączanie 🔒", 
+        joinEnabled: section.joinEnabled 
+    });
+});
 app.post("/add-note", auth, (req, res) => {
     const { code, lessonName, link1, link2 } = req.body;
     let sections = loadSections();
