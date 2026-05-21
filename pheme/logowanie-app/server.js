@@ -425,10 +425,10 @@ app.post("/promote-to-teacher", auth, (req, res) => {
 // --- INNE ---
 
 app.post("/reset", auth, admin, (req, res) => {
-    let users = loadUsers();
-    saveUsers(users.filter(u => u.role === "admin" || u.role === "polska_sigma"));
-    saveSections([]);
-    res.send("Baza zresetowana");
+    //let users = loadUsers();
+    //saveUsers(users.filter(u => u.role === "admin" || u.role === "polska_sigma"));
+    //saveSections([]);
+    //res.send("Baza zresetowana");
 });
 
 // --- SYSTEM PYTAŃ ---
