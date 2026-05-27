@@ -187,7 +187,12 @@
                     <input id="p_name" type="text" placeholder="Wpisz swoje imię">
                 </div>
             </div>
-
+            <div class="form-group">
+                <label>Adres E-mail</label>
+                <div class="input-box">
+                    <input id="p_email" type="email" placeholder="np. oijlatwy@gmail.com">
+                </div>
+            </div>
             <button class="submit-btn" onclick="zapiszImie()">Zapisz dane</button>
         </div>
 
@@ -246,6 +251,9 @@
                 document.getElementById("display-login").innerText = data.username;
                 document.getElementById("p_name").value = data.name || "";
 
+
+                document.getElementById("p_email").value = data.email || "";
+
                 // Obsługa wyświetlania roli
                 const roleEl = document.getElementById("display-role");
                 if (data.username === "TWÓJ_SUPER_LOGIN") {
@@ -265,6 +273,7 @@
 
     async function zapiszImie() {
         const newName = document.getElementById("p_name").value.trim();
+        const email = document.getElementById("p_email").value.trim();
         const wynikEl = document.getElementById("wynik");
         wynikEl.style.color = "#333";
         wynikEl.innerText = "Zapisywanie...";
@@ -276,13 +285,13 @@
                     "Content-Type": "application/json",
                     "Authorization": "Bearer " + token
                 },
-                body: JSON.stringify({ newName: newName }) 
+                body: JSON.stringify({ newName: newName, email: email })
             });
 
             const data = await res.json();
             if (res.ok) {
                 wynikEl.style.color = "var(--primary-green)";
-                wynikEl.innerText = "Imię zostało pomyślnie zaktualizowane!";
+                wynikEl.innerText = "Dane zostały pomyślnie zaktualizowane!";
             } else {
                 wynikEl.style.color = "var(--red-header)";
                 wynikEl.innerText = data.message || "Wystąpił błąd";

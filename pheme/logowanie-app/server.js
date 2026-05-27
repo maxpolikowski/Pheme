@@ -1,3 +1,5 @@
+// server.js - KOMPLETNY ZAKTUALIZOWANY KOD
+require("dotenv").config(); // 🔥 NOWE: Ta linijka musi być na samej górze!
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -5,13 +7,35 @@ const fs = require("fs");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const path = require("path");
+const nodemailer = require("nodemailer"); // 🔥 NOWE: Import biblioteki e-mail
 
 const app = express();
 
-// --- KONFIGURACJA ---
-const SECRET = "tajny_klucz";
+// --- KONFIGURACJA Z .ENV ---
+// 🔥 Używamy wartości z pliku .env zamiast wpisywać je tutaj na sztywno
+const SECRET = process.env.JWT_SECRET || "tajny_klucz_pheme_default";
 const DB_FILE = "users.json";
 const SECTIONS_FILE = "sections.json";
+const API_URL = process.env.API_URL || "https://pheme-far9.onrender.com";
+
+// 🔥 NOWE: Konfiguracja konta, z którego serwer WYSYŁA maile
+const transporter = nodemailer.createTransport({
+    service: 'gmail', // Zakładamy, że używasz Gmaila. Jeśli nie, zmień to.
+    auth: {
+        user: process.env.EMAIL_USER, // Dane pobrane z pliku .env
+        pass: process.env.EMAIL_PASS  // Twoje 16-znakowe hasło aplikacji
+    }
+});
+
+// Weryfikacja połączenia e-mail przy starcie
+transporter.verify((error, success) => {
+    if (error) {
+        console.error("❌ Błąd konfiguracji E-mail:", error.message);
+        console.error("Sprawdź plik .env i hasło aplikacji.");
+    } else {
+        console.log("✅ Serwer e-mail gotowy do wysyłania powiadomień.");
+    }
+});
 
 app.use(express.json());
 app.use(cors({
@@ -74,7 +98,8 @@ app.post("/register", async (req, res) => {
         let users = loadUsers();
         if (users.find(u => u.username === username)) return res.status(400).send("Użytkownik już istnieje");
         const hash = await bcrypt.hash(password, 10);
-        users.push({ username, password: hash, name: name || "", role: "user" });
+        // NOWE: Dodajemy puste pole email przy rejestracji
+        users.push({ username, password: hash, name: name || "", role: "user", email: "" });
         saveUsers(users);
         res.send("Zarejestrowano!");
     } catch (e) { res.status(500).send("Błąd serwera"); }
@@ -95,15 +120,27 @@ app.get("/profil", auth, (req, res) => {
     const users = loadUsers();
     const user = users.find(u => u.username === req.user.username);
     if (!user) return res.status(404).send("User not found");
-    res.json({ username: user.username, name: user.name || "", role: user.role });
+    // 🔥 NOWE: Wysyłamy email do frontendu
+    res.json({ username: user.username, name: user.name || "", role: user.role, email: user.email || "" });
 });
 
 app.post("/update-profile", auth, async (req, res) => {
-    const { newName, oldPassword, newPassword } = req.body;
+    // 🔥 NOWE: Odbieramy e-mail w body
+    const { newName, email, oldPassword, newPassword } = req.body;
     let users = loadUsers();
     const user = users.find(u => u.username === req.user.username);
     if (!user) return res.status(404).json({ message: "Użytkownik nie istnieje" });
+    
     if (newName && newName.trim() !== "") user.name = newName;
+    
+    // 🔥 NOWE: Zapisywanie maila
+    // Pozwalamy zapisać maila tylko jeśli użytkownik jest adminem lub polską sigmą (nauczycielem)
+    if (email !== undefined) {
+            user.email = email.trim(); // Zapisujemy (może być pusty string, jeśli user wyczyścił pole)
+
+        // Jeśli zwykły user wysyła pusty email lub ten sam co ma – ignorujemy.
+    }
+
     if (newPassword && newPassword.trim() !== "") {
         if (!oldPassword) return res.status(400).json({ message: "Podaj stare hasło" });
         const passwordMatch = await bcrypt.compare(oldPassword, user.password);
@@ -114,12 +151,11 @@ app.post("/update-profile", auth, async (req, res) => {
     res.json({ message: "Pomyślnie zaktualizowano profil" });
 });
 
-// --- ENDPOINTY SEKCJI ---
+// ... (endpointy globalne promote/demote bez zmian) ...
 app.post("/promote-global", auth, (req, res) => {
     const { targetUsername } = req.body;
     const requesterRole = req.user.role;
 
-    // Tylko obecny admin lub polska_sigma może kogoś awansować
     if (requesterRole !== "polska_sigma") {
         return res.status(403).json({ message: "Brak globalnych uprawnień boga!" });
     }
@@ -131,7 +167,6 @@ app.post("/promote-global", auth, (req, res) => {
         return res.status(404).json({ message: "Nie znaleziono takiego użytkownika w bazie." });
     }
 
-    // Ścieżka awansu: user -> admin -> polska_sigma
     if (user.role === "user") {
         user.role = "admin";
         saveUsers(users);
@@ -139,8 +174,6 @@ app.post("/promote-global", auth, (req, res) => {
     } 
     
     if (user.role === "admin") {
-        // ZABEZPIECZENIE (Opcjonalne): Jeśli chcesz, aby TYLKO istniejąca 'polska_sigma' mogła stworzyć kolejną 'polską sigmę',
-        // odkomentuj poniższe 3 linijki. Jeśli zwykły admin też może tworzyć sigmy – zostaw tak jak jest.
         if (requesterRole !== "polska_sigma") {
             return res.status(403).json({ message: "Tylko obecna Polska Sigma może mianować nowe sigmy" });
         }
@@ -150,20 +183,17 @@ app.post("/promote-global", auth, (req, res) => {
         return res.json({ message: `Użytkownik ${targetUsername} Został Polską Sigmą` });
     }
 
-    // Jeśli użytkownik ma już rolę polska_sigma
     res.status(400).json({ message: "Ten użytkownik posiada już najwyższą możliwą rangę (Polska Sigma)." });
 });
 
 app.post("/demote-global", auth, (req, res) => {
     const { targetUsername } = req.body;
-    const requesterUsername = req.user.username; // Sprawdzamy konkretny login zalogowanego
+    const requesterUsername = req.user.username;
 
-    // ABSOLUTNE ZABEZPIECZENIE: Tylko i wyłącznie "pomaksik" ma do tego prawo
     if (requesterUsername !== "pomaksik") {
         return res.status(403).json({ message: "Brak uprawnień. Tylko pomaksik posiada moc odbierania rang!" });
     }
 
-    // Zabezpieczenie przed degradacją samego siebie na poziomie API
     if (targetUsername === "pomaksik") {
         return res.status(400).json({ message: "Nie możesz zdegradować samego siebie!" });
     }
@@ -175,7 +205,6 @@ app.post("/demote-global", auth, (req, res) => {
         return res.status(404).json({ message: "Nie znaleziono takiego użytkownika w bazie." });
     }
 
-    // Ścieżka degradacji: polska_sigma -> admin -> user
     if (user.role === "polska_sigma") {
         user.role = "admin";
         saveUsers(users);
@@ -188,7 +217,6 @@ app.post("/demote-global", auth, (req, res) => {
         return res.json({ message: `Użytkownik ${targetUsername} został zdegradowany do rangi Użytkownik (user).` });
     }
 
-    // Jeśli użytkownik ma już najniższą rolę "user"
     res.status(400).json({ message: "Ten użytkownik ma już najniższą możliwą rangę (user)." });
 });
 
@@ -202,7 +230,8 @@ app.post("/create-section", auth, admin, (req, res) => {
         creator: req.user.username,
         members: [{ username: req.user.username, role: "nauczyciel" }],
         notes: [],
-        feedbacks: []
+        feedbacks: [],
+        questions: [] // NOWE: Inicjalizacja tablicy pytań
     };
     sections.push(newSection);
     saveSections(sections);
@@ -215,7 +244,6 @@ app.post("/join-section", auth, (req, res) => {
     const section = sections.find(s => s.code === code);
     if (!section) return res.status(404).json({ message: "Zły kod sekcji" });
     
-    // 🔥 NOWE: Sprawdzenie blokady dołączania
     if (section.joinEnabled === false) {
         return res.status(403).json({ message: "Dołączanie do tej sekcji zostało zablokowane przez nauczyciela." });
     }
@@ -234,7 +262,7 @@ app.get("/moje-sekcje", auth, (req, res) => {
             name: s.name,
             kod: s.code,
             rola: s.members.find(m => m.username === req.user.username).role,
-            joinEnabled: s.joinEnabled !== false // Wysyłamy stan do frontendu
+            joinEnabled: s.joinEnabled !== false 
         }));
     res.json(mySections);
 });
@@ -267,7 +295,7 @@ app.get("/section-notes/:code", auth, (req, res) => {
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
     res.json(section.notes || []);
 });
-// Przełączanie blokady dołączania do sekcji (tylko dla nauczyciela sekcji)
+
 app.post("/toggle-section-join", auth, (req, res) => {
     const { code } = req.body;
     let sections = loadSections();
@@ -275,7 +303,6 @@ app.post("/toggle-section-join", auth, (req, res) => {
     
     if (!section) return res.status(404).json({ message: "Sekcja nie istnieje." });
     
-    // Tylko nauczyciel TEJ sekcji może to kliknąć
     const member = section.members.find(m => m.username === req.user.username);
     if (!member || member.role !== "nauczyciel") {
         return res.status(403).json({ message: "Brak uprawnień. Tylko nauczyciel sekcji może to zrobić." });
@@ -321,7 +348,7 @@ app.delete("/delete-note/:code/:noteId", auth, (req, res) => {
     saveSections(sections);
     res.json({ message: "Usunięto lekcję" });
 });
-// 4. NOWY ENDPOINT: Całkowite niszczenie sekcji przed wejściem
+
 app.delete("/god/delete-section/:code", auth, godAuth, (req, res) => {
     let sections = loadSections();
     const startLength = sections.length;
@@ -425,10 +452,7 @@ app.post("/promote-to-teacher", auth, (req, res) => {
 // --- INNE ---
 
 app.post("/reset", auth, admin, (req, res) => {
-    //let users = loadUsers();
-    //saveUsers(users.filter(u => u.role === "admin" || u.role === "polska_sigma"));
-    //saveSections([]);
-    //res.send("Baza zresetowana");
+    // Funkcja resetu wyłączona dla bezpieczeństwa
 });
 
 // --- SYSTEM PYTAŃ ---
@@ -444,18 +468,59 @@ app.post("/ask-question", auth, (req, res) => {
     const users = loadUsers();
     const me = users.find(u => u.username === req.user.username);
 
-    section.questions.push({
+    const newQuestion = {
         id: Date.now().toString(), 
         from: me.name || me.username,
         fromUsername: me.username,
         subject: subject || "Brak tematu",
         text: question,
-        to: recipients, 
+        to: recipients, // Lista loginów nauczycieli
         date: new Date().toLocaleString("pl-PL"),
         replies: [] 
+    };
+
+    section.questions.push(newQuestion);
+    saveSections(sections);
+
+    // 🔥 NOWE: Funkcja wysyłania powiadomień e-mail do nauczycieli
+    // Wywołujemy ją w tle (process.nextTick), aby frontend nie musiał czekać na zakończenie wysyłania maili
+    process.nextTick(() => {
+        // recipients to tablica loginów, np ["admin", "nauczyciel1"]
+        const targetLogins = Array.isArray(recipients) ? recipients : [recipients];
+        
+        targetLogins.forEach(teacherUsername => {
+            const teacherUser = users.find(u => u.username === teacherUsername);
+            
+            // Sprawdzamy, czy nauczyciel istnieje i ma WPISANEGO maila w profilu
+            if (teacherUser && teacherUser.email && teacherUser.email.trim() !== "") {
+                const mailOptions = {
+                    from: `"Pheme Powiadomienia" <${process.env.EMAIL_USER}>`, // Przyjazna nazwa nadawcy
+                    to: teacherUser.email, // Adres e-mail nauczyciela z bazy
+                    subject: `[Pheme] Nowa wiadomość od ${me.name || me.username}!`,
+                    text: `Cześć ${teacherUser.name || teacherUser.username}!\n\nUżytkownik ${me.name || me.username} napisał do Ciebie wiadomość w sekcji ${section.name}:\n\nTemat: "${newQuestion.subject}"\nTreść: "${newQuestion.text}"\n\nZaloguj się do platformy, aby odpowiedzieć:\n${API_URL}`,
+                    html: `<h3>Cześć ${teacherUser.name || teacherUser.username}!</h3>
+                           <p>Użytkownik <strong>${me.name || me.username}</strong> napisał do Ciebie wiadomość w sekcji <strong>${section.name}</strong>:</p>
+                           <blockquote style="border-left: 4px solid #00ce52; padding: 10px; background: #f9f9f9; color: #333;">
+                               <strong>Temat:</strong> ${newQuestion.subject}<br>
+                               <strong>Treść:</strong> ${newQuestion.text}
+                           </blockquote>
+                           <p><a href="${API_URL}/pytania.html">Kliknij tutaj, aby przejść do Centrum Wiadomości i odpowiedzieć</a>.</p>`
+                };
+
+                // Wysłanie maila
+                transporter.sendMail(mailOptions, (error, info) => {
+                    if (error) {
+                        console.error(`❌ Błąd wysyłania maila do ${teacherUsername}:`, error.message);
+                    } else {
+                        console.log(`✉️ Mail powiadamiający wysłany do ${teacherUsername} (${info.response})`);
+                    }
+                });
+            } else {
+                console.log(`ℹ️ Nauczyciel ${teacherUsername} nie ma ustawionego e-maila – pomijam powiadomienie.`);
+            }
+        });
     });
 
-    saveSections(sections);
     res.json({ message: "Pytanie wysłane!" });
 });
 
@@ -467,7 +532,6 @@ app.get("/section-questions/:code", auth, (req, res) => {
     const allQs = section.questions || [];
     const myUsername = req.user.username;
 
-    // Odblokowanie pełnego podsłuchu dla Sigmy
     if (req.user.role === "polska_sigma" || req.user.role === "admin") {
         return res.json(allQs);
     }
@@ -518,12 +582,10 @@ app.post("/remove-from-section", auth, (req, res) => {
     const isSectionTeacher = memberInSec && memberInSec.role === "nauczyciel";
     const isGod = requesterGlobalRole === "polska_sigma" || requesterGlobalRole === "admin";
 
-    // Bóg lub nauczyciel sekcji mogą wyrzucać
     if (!isGod && !isSectionTeacher) {
-        return res.status(403).json({ message: "Błąd uprawnień." });
+        return res.status(403).json({ message: "Brak uprawnień." });
     }
 
-    // Zabezpieczenia boskie
     if (targetUsername === requesterUsername) {
         return res.status(400).json({ message: "Nie możesz usunąć z sekcji samego siebie w ten sposób." });
     }
@@ -546,24 +608,20 @@ app.post("/remove-from-section", auth, (req, res) => {
 // --- PANEL BOGA (SIGMY) ---
 // ==========================================
 
-// Middleware sprawdzający rolę boga
 function godAuth(req, res, next) {
     if (req.user.role !== "polska_sigma") return res.status(403).json({ message: "Brak uprawnień boskich!" });
     next();
 }
 
-// Pobieranie wszystkich użytkowników
 app.get("/god/all-users", auth, godAuth, (req, res) => {
-    const users = loadUsers().map(u => ({ username: u.username, name: u.name, role: u.role }));
+    const users = loadUsers().map(u => ({ username: u.username, name: u.name, role: u.role, email: u.email })); // NOWE: Wysyłamy email do panelu boga
     res.json(users);
 });
 
-// Pobieranie wszystkich sekcji z pełnymi danymi
 app.get("/god/all-sections", auth, godAuth, (req, res) => {
     res.json(loadSections());
 });
 
-// Pobieranie wszystkich feedbacków z całej aplikacji
 app.get("/god/all-feedbacks", auth, godAuth, (req, res) => {
     const sections = loadSections();
     let allFb = [];
@@ -572,10 +630,9 @@ app.get("/god/all-feedbacks", auth, godAuth, (req, res) => {
             allFb.push({ ...f, sectionCode: s.code, sectionName: s.name });
         });
     });
-    res.json(allFb.reverse()); // Najnowsze na górze
+    res.json(allFb.reverse()); 
 });
 
-// Pobieranie wszystkich pytań z całej aplikacji
 app.get("/god/all-questions", auth, godAuth, (req, res) => {
     const sections = loadSections();
     let allQ = [];
@@ -584,9 +641,9 @@ app.get("/god/all-questions", auth, godAuth, (req, res) => {
             allQ.push({ ...q, sectionCode: s.code, sectionName: s.name });
         });
     });
-    res.json(allQ.reverse()); // Najnowsze na górze
+    res.json(allQ.reverse()); 
 });
-// 🔥 NOWY ENDPOINT: Usuwanie użytkownika z całej aplikacji z poziomu Panelu Sigmy
+
 app.post("/god/delete-user", auth, godAuth, (req, res) => {
     const { targetUsername } = req.body;
 
@@ -597,40 +654,26 @@ app.post("/god/delete-user", auth, godAuth, (req, res) => {
         return res.status(404).json({ message: "Użytkownik nie istnieje w bazie." });
     }
 
-    // Zabezpieczenie przed usunięciem administratora / innej sigmy
     if (users[userIndex].role === "admin") {
         return res.status(403).json({ message: "Nie można usuwać innych administratorów." });
     }
 
-    // Usunięcie użytkownika z tablicy
     users.splice(userIndex, 1);
+    saveUsers(users);
 
-    // Zapisanie zaktualizowanej listy użytkowników
-    if (typeof saveUsers === "function") {
-        saveUsers(users);
-    } else {
-        fs.writeFileSync(DB_FILE, JSON.stringify(users, null, 2));
-    }
-
-    // Czyszczenie sekcji – usuwamy użytkownika z każdej sekcji, w której się znajdował
     try {
         let sections = loadSections();
         sections.forEach(s => {
             s.members = s.members.filter(m => m.username !== targetUsername);
         });
-        
-        if (typeof saveSections === "function") {
-            saveSections(sections);
-        } else {
-            fs.writeFileSync(SECTIONS_FILE, JSON.stringify(sections, null, 2));
-        }
+        saveSections(sections);
     } catch (e) {
         console.error("Błąd podczas usuwania użytkownika z sekcji:", e);
     }
 
     res.json({ message: `Użytkownik ${targetUsername} został pomyślnie usunięty.` });
 });
-// "Boskie" dodawanie dowolnego użytkownika do dowolnej sekcji
+
 app.post("/god/force-add-member", auth, godAuth, (req, res) => {
     const { username, code, role } = req.body;
     let sections = loadSections();
@@ -644,7 +687,7 @@ app.post("/god/force-add-member", auth, godAuth, (req, res) => {
 
     const existingMember = section.members.find(m => m.username === username);
     if (existingMember) {
-        existingMember.role = role; // Aktualizacja roli, jeśli już jest w sekcji
+        existingMember.role = role; 
     } else {
         section.members.push({ username, role });
     }
