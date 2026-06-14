@@ -21,6 +21,10 @@ const API_URL = process.env.API_URL || "https://pheme-far9.onrender.com";
 // 🔥 NOWE: Konfiguracja konta, z którego serwer WYSYŁA maile
 const transporter = nodemailer.createTransport({
     service: 'gmail', // Zakładamy, że używasz Gmaila. Jeśli nie, zmień to.
+    host: 'smtp.gmail.com', // Dodaj to dla pewności
+    port: 465,
+    secure: true,
+    family: 4, // 🔥 TO JEST KLUCZOWE: Wymusza IPv4, naprawia błąd ENETUNREACH
     auth: {
         user: process.env.EMAIL_USER, // Dane pobrane z pliku .env
         pass: process.env.EMAIL_PASS  // Twoje 16-znakowe hasło aplikacji
