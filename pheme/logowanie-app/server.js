@@ -566,6 +566,52 @@ app.post("/reply-question", auth, (req, res) => {
     });
 
     saveSections(sections);
+
+    process.nextTick(() => {
+        // 1. Zbieramy wszystkich uczestników konwersacji (używamy Set, by uniknąć duplikatów)
+        let participantsLogins = new Set();
+        participantsLogins.add(question.fromUsername); // Autor oryginalnego pytania
+        
+        if (Array.isArray(question.to)) {
+            question.to.forEach(u => participantsLogins.add(u)); // Odbiorcy (nauczyciele)
+        } else {
+            participantsLogins.add(question.to);
+        }
+        
+        // 2. Usuwamy z powiadomień osobę, która właśnie wysłała odpowiedź (siebie)
+        participantsLogins.delete(me.username);
+
+        // 3. Wysyłamy maile do pozostałych uczestników
+        participantsLogins.forEach(targetUsername => {
+            const targetUser = users.find(u => u.username === targetUsername);
+            
+            if (targetUser && targetUser.email && targetUser.email.trim() !== "") {
+                const mailOptions = {
+                    from: `"Pheme Powiadomienia" <${process.env.EMAIL_USER}>`,
+                    to: targetUser.email,
+                    subject: `[Pheme] Nowa odpowiedź w sekcji: ${section.name}`,
+                    text: `Witaj ${targetUser.name || targetUser.username}!\n\nUżytkownik ${me.name || me.username} odpowiedział na Twoją konwersację w sekcji "${section.name}" (Data: ${replyDate}).\n\nTemat: ${question.subject}\nTreść odpowiedzi: "${text}"\n\nZaloguj się do platformy, aby zobaczyć i odpowiedzieć:\n${API_URL}/pytania.html`,
+                    html: `<h3>Witaj ${targetUser.name || targetUser.username}!</h3>
+                           <p>Użytkownik <strong>${me.name || me.username}</strong> odpowiedział na Twoją konwersację w sekcji <strong>${section.name}</strong> (Data: ${replyDate}).</p>
+                           <p><strong>Temat:</strong> ${question.subject}</p>
+                           <blockquote style="border-left: 4px solid #007bff; padding: 10px; background: #f9f9f9; color: #333;">
+                               <strong>Treść odpowiedzi:</strong><br>${text}
+                           </blockquote>
+                           <p><a href="${API_URL}/pytania.html">Kliknij tutaj, aby przejść do Centrum Wiadomości i odpisać</a>.</p>`
+                };
+
+                // Wysłanie wiadomości
+                transporter.sendMail(mailOptions, (error, info) => {
+                    if (error) {
+                        console.error(`❌ Błąd wysyłania maila do ${targetUsername}:`, error.message);
+                    } else {
+                        console.log(`✉️ Mail (nowa odpowiedź) wysłany do ${targetUsername}`);
+                    }
+                });
+            }
+        });
+    });
+    
     res.json({ message: "Dodano odpowiedź!" });
 });
 
