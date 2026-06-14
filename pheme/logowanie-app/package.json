@@ -6,7 +6,8 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.4.1",
     "jsonwebtoken": "^9.0.3",
-    "nodemailer": "^8.0.9"
+    "nodemailer": "^8.0.9",
+    "mongoose": "^8.4.0"
   },
   "name": "logowanie-app",
   "version": "1.0.0",

@@ -1,5 +1,6 @@
 // server.js - KOMPLETNY ZAKTUALIZOWANY KOD
 require("dotenv").config(); // 🔥 NOWE: Ta linijka musi być na samej górze!
+const mongoose = require('mongoose');
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -8,7 +9,10 @@ const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const path = require("path");
 const nodemailer = require("nodemailer"); // 🔥 NOWE: Import biblioteki e-mail
-
+// Łączenie z bazą danych MongoDB
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log('✅ Połączono z bazą MongoDB!'))
+  .catch((err) => console.error('❌ Błąd połączenia z MongoDB:', err));
 const app = express();
 
 // --- KONFIGURACJA Z .ENV ---
