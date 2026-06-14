@@ -20,18 +20,21 @@ const API_URL = process.env.API_URL || "https://pheme-far9.onrender.com";
 
 // 🔥 NOWE: Konfiguracja konta, z którego serwer WYSYŁA maile
 const transporter = nodemailer.createTransport({
-    service: 'gmail', // Zakładamy, że używasz Gmaila. Jeśli nie, zmień to.
-    host: 'smtp.gmail.com', // Dodaj to dla pewności
+    // service: 'gmail' <--- usuń to, bo to czasem bruździ!
+    host: 'smtp.gmail.com',
     port: 587,
-    secure: false,
-    family: 4, // 🔥 TO JEST KLUCZOWE: Wymusza IPv4, naprawia błąd ENETUNREACH
+    secure: false, // Wymagane dla portu 587
+    requireTLS: true,
+    family: 4,     // Wymusza IPv4
     auth: {
-        user: process.env.EMAIL_USER, // Dane pobrane z pliku .env
-        pass: process.env.EMAIL_PASS  // Twoje 16-znakowe hasło aplikacji
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     },
-    pool: true, 
-    connectionTimeout: 20000, 
-    socketTimeout: 20000
+    // Te opcje pomagają w "trzymaniu" połączenia, żeby nie zrywało DNS
+    pool: true,
+    maxConnections: 1,
+    connectionTimeout: 30000, // 30 sekund
+    socketTimeout: 30000
 });
 
 // Weryfikacja połączenia e-mail przy starcie
