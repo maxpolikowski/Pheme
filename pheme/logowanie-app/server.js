@@ -518,23 +518,36 @@ app.post("/ask-question", auth, async (req, res) => {
         section.questions.push(newQuestion);
         await section.save();
 
-        process.nextTick(async () => {
+       process.nextTick(async () => {
             const targetLogins = Array.isArray(recipients) ? recipients : [recipients];
             const teachers = await User.find({ username: { $in: targetLogins } });
             
             teachers.forEach(teacherUser => {
                 if (teacherUser && teacherUser.email && teacherUser.email.trim() !== "") {
                     
-                    const mailSubject = `[Pheme] Nowa wiadomość od ${user.name || user.username}!`;
-                    const mailText = `Cześć ${teacherUser.name || teacherUser.username}!\n\nUżytkownik ${user.name || user.username} napisał do Ciebie wiadomość w sekcji ${section.name}:\n\nTemat: "${newQuestion.subject}"\nTreść: "${newQuestion.text}"\n\nZaloguj się do platformy, aby odpowiedzieć:\n${API_URL}`;
+                    // Zmiana tematu na "Nowa wiadomość"
+                    const mailSubject = `[Pheme] Nowa wiadomość: ${newQuestion.subject}`;
+                    
+                    const mailText = `Cześć ${teacherUser.name || teacherUser.username}!\n\nMasz nową wiadomość od użytkownika ${user.name || user.username} w sekcji "${section.name}".\n\n[${newQuestion.date}] ${user.name || user.username}:\n${newQuestion.text}\n\nOdpowiedz tutaj: ${API_URL}/pytania.html`;
+                    
                     const mailHtml = `
-                        <h3>Cześć ${teacherUser.name || teacherUser.username}!</h3>
-                        <p>Użytkownik <strong>${user.name || user.username}</strong> napisał do Ciebie wiadomość w sekcji <strong>${section.name}</strong>:</p>
-                        <blockquote style="border-left: 4px solid #00ce52; padding: 10px; background: #f9f9f9; color: #333;">
-                            <strong>Temat:</strong> ${newQuestion.subject}<br>
-                            <strong>Treść:</strong> ${newQuestion.text}
-                        </blockquote>
-                        <p><a href="${API_URL}/pytania.html">Kliknij tutaj, aby przejść do Centrum Wiadomości i odpowiedzieć</a>.</p>
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px;">
+                            <h2 style="color: #00ce52; margin-top: 0;">Nowa wiadomość!</h2>
+                            <p>Użytkownik <strong>${user.name || user.username}</strong> rozpoczął nowy wątek v sekcji <strong>${section.name}</strong>:</p>
+                            
+                            <div style="background-color: #f9f9f9; border-left: 4px solid #00ce52; padding: 15px; margin: 15px 0;">
+                                <small style="color: #888;">${newQuestion.date}</small><br>
+                                <strong style="color: #333;">Temat: ${newQuestion.subject}</strong>
+                                <p style="margin: 10px 0 0 0; white-space: pre-wrap; color: #444;">${newQuestion.text}</p>
+                            </div>
+                            
+                            <p style="margin-top: 25px;">
+                                <a href="${API_URL}/pytania.html" 
+                                   style="background-color: #00ce52; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                                   Przejdź do Centrum Wiadomości
+                                </a>
+                            </p>
+                        </div>
                     `;
 
                     sendBrevoEmail(teacherUser.email, mailSubject, mailText, mailHtml);
@@ -592,19 +605,57 @@ app.post("/reply-question", auth, async (req, res) => {
             participantsLogins.delete(user.username);
             const targets = await User.find({ username: { $in: Array.from(participantsLogins) } });
 
+            // --- BUDOWANIE CAŁEJ HISTORII KONWERSACJI ---
+            // 1. Dodajemy oryginalną, pierwszą wiadomość
+            let historyText = `[${question.date}] ${question.from}: ${question.text}\n`;
+            let historyHtml = `
+                <div style="background-color: #f5f5f5; border-left: 4px solid #777; padding: 12px; margin-bottom: 10px; border-radius: 4px;">
+                    <small style="color: #777;"><strong>${question.from}</strong> • ${question.date}</small>
+                    <p style="margin: 5px 0 0 0; white-space: pre-wrap; color: #444;">${question.text}</p>
+                </div>
+            `;
+
+            // 2. Przejeżdżamy przez pętlę wszystkich dotychczasowych odpowiedzi
+            question.replies.forEach((r, index) => {
+                const isLast = index === question.replies.length - 1;
+                // Najnowszą (bieżącą) odpowiedź wyróżnimy wizualnie
+                const bgCol = isLast ? '#eff7ff' : '#fafafa';
+                const borderCol = isLast ? '#007bff' : '#ddd';
+                const newBadge = isLast ? ' <span style="background:#007bff; color:white; padding:1px 5px; border-radius:3px; font-size:10px; font-weight:bold;">NOWA ODPOWIEDŹ</span>' : '';
+
+                historyText += `[${r.date}] ${r.from}: ${r.text}\n`;
+                historyHtml += `
+                    <div style="background-color: ${bgCol}; border-left: 4px solid ${borderCol}; padding: 12px; margin-bottom: 10px; margin-left: 15px; border-radius: 4px;">
+                        <small style="color: #777;"><strong>${r.from}</strong> • ${r.date}${newBadge}</small>
+                        <p style="margin: 5px 0 0 0; white-space: pre-wrap; color: #333;">${r.text}</p>
+                    </div>
+                `;
+            });
+
             targets.forEach(targetUser => {
                 if (targetUser && targetUser.email && targetUser.email.trim() !== "") {
 
-                    const mailSubject = `[Pheme] Nowa odpowiedź w sekcji: ${section.name}`;
-                    const mailText = `Witaj ${targetUser.name || targetUser.username}!\n\nUżytkownik ${user.name || user.username} odpowiedział na Twoją konwersację w sekcji "${section.name}" (Data: ${replyDate}).\n\nTemat: ${question.subject}\nTreść odpowiedzi: "${text}"\n\nZaloguj się do platformy, aby zobaczyć i odpowiedzieć:\n${API_URL}/pytania.html`;
+                    // Zmiana tematu na "Odpisanie na Twoją wiadomość"
+                    const mailSubject = `[Pheme] Odpisanie na Twoją wiadomość w wątku: ${question.subject}`;
+                    
+                    const mailText = `Witaj ${targetUser.name || targetUser.username}!\n\nUżytkownik ${user.name || user.username} odpowiedział w wątku "${question.subject}".\n\nPełna historia konwersacji:\n${historyText}\n\nAby odpisac, przejdź tutaj: ${API_URL}/pytania.html`;
+                    
                     const mailHtml = `
-                        <h3>Witaj ${targetUser.name || targetUser.username}!</h3>
-                        <p>Użytkownik <strong>${user.name || user.username}</strong> odpowiedział na Twoją konwersację w sekcji <strong>${section.name}</strong> (Data: ${replyDate}).</p>
-                        <p><strong>Temat:</strong> ${question.subject}</p>
-                        <blockquote style="border-left: 4px solid #007bff; padding: 10px; background: #f9f9f9; color: #333;">
-                            <strong>Treść odpowiedzi:</strong><br>${text}
-                        </blockquote>
-                        <p><a href="${API_URL}/pytania.html">Kliknij tutaj, aby przejść do Centrum Wiadomości i odpisać</a>.</p>
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px;">
+                            <h2 style="color: #007bff; margin-top: 0;">Nowa odpowiedź w konwersacji!</h2>
+                            <p>Użytkownik <strong>${user.name || user.username}</strong> odpisał w wątku o temacie: <em>"${question.subject}"</em> (sekcja: ${section.name}).</p>
+                            
+                            <h4 style="color: #555; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;">Historia konwersacji:</h4>
+                            
+                            ${historyHtml}
+                            
+                            <p style="margin-top: 25px;">
+                                <a href="${API_URL}/pytanya.html" 
+                                   style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                                   Zobacz w aplikacji i odpowiedz
+                                </a>
+                            </p>
+                        </div>
                     `;
 
                     sendBrevoEmail(targetUser.email, mailSubject, mailText, mailHtml);
