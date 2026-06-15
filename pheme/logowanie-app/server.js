@@ -1,35 +1,62 @@
-// server.js - KOMPLETNY KOD (Z NAPRAWIONYM E-MAILEM I BRAKIEM CRASHÓW)
+// server.js - PEŁNY KOD Z INTEGRACJĄ MONGOODB (DANE JUŻ NIGDY NIE ZNIKNĄ)
 require("dotenv").config();
 const mongoose = require('mongoose');
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const fs = require("fs");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
-const path = require("path");
 const nodemailer = require("nodemailer");
 
 const app = express();
 
 // --- KONFIGURACJA Z .ENV ---
 const SECRET = process.env.JWT_SECRET || "tajny_klucz_pheme_default";
-const DB_FILE = "users.json";
-const SECTIONS_FILE = "sections.json";
 const API_URL = process.env.API_URL || "https://pheme-far9.onrender.com";
 
-// Łączenie z MongoDB
+// --- POŁĄCZENIE Z MONGOODB ---
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ Połączono z bazą MongoDB!'))
+  .then(() => console.log('✅ Połączono z bazą MongoDB! Dane są bezpieczne.'))
   .catch((err) => console.error('❌ Błąd połączenia z MongoDB:', err));
-  
-// --- KONFIGURACJA E-MAIL (Zoptymalizowana pod Render) ---
+
+// --- MODELE BAZY DANYCH (MONGOOSE SCHEMAS) ---
+const userSchema = new mongoose.Schema({
+    username: { type: String, unique: true, required: true },
+    password: { type: String, required: true },
+    name: { type: String, default: "" },
+    role: { type: String, default: "user" },
+    email: { type: String, default: "" }
+});
+const User = mongoose.model('User', userSchema);
+
+const sectionSchema = new mongoose.Schema({
+    name: String,
+    code: { type: String, unique: true },
+    creator: String,
+    joinEnabled: { type: Boolean, default: true },
+    members: [{ username: String, role: String }],
+    notes: [{ id: Number, lessonName: String, link1: String, link2: String, date: String }],
+    feedbacks: [{ id: String, lessonName: String, message: String, username: String, author: String, date: String, edited: Boolean }],
+    questions: [{
+        id: String,
+        from: String,
+        fromUsername: String,
+        subject: String,
+        text: String,
+        to: [String],
+        date: String,
+        replies: [{ from: String, fromUsername: String, text: String, date: String }]
+    }]
+});
+const Section = mongoose.model('Section', sectionSchema);
+
+// --- KONFIGURACJA E-MAIL ---
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
-    secure: false, // Wymagane dla portu 587
+    secure: false, 
     requireTLS: true,
-    family: 4,     // Wymusza IPv4
+    family: 4,     
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
@@ -40,10 +67,9 @@ const transporter = nodemailer.createTransport({
     socketTimeout: 30000
 });
 
-transporter.verify((error, success) => {
+transporter.verify((error) => {
     if (error) {
         console.error("❌ Błąd konfiguracji E-mail:", error.message);
-        console.error("Sprawdź plik .env i hasło aplikacji.");
     } else {
         console.log("✅ Serwer e-mail gotowy do wysyłania powiadomień.");
     }
@@ -67,22 +93,6 @@ const loginLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-// --- INICJALIZACJA BAZY (Lokalne pliki JSON) ---
-if (!fs.existsSync(DB_FILE)) fs.writeFileSync(DB_FILE, "[]");
-if (!fs.existsSync(SECTIONS_FILE)) fs.writeFileSync(SECTIONS_FILE, "[]");
-
-function loadUsers() {
-    try { return JSON.parse(fs.readFileSync(DB_FILE, "utf-8")); } 
-    catch (err) { return []; }
-}
-function saveUsers(users) { fs.writeFileSync(DB_FILE, JSON.stringify(users, null, 2)); }
-
-function loadSections() {
-    try { return JSON.parse(fs.readFileSync(SECTIONS_FILE, "utf-8")); } 
-    catch (err) { return []; }
-}
-function saveSections(sections) { fs.writeFileSync(SECTIONS_FILE, JSON.stringify(sections, null, 2)); }
-
 // --- MIDDLEWARE ---
 function auth(req, res, next) {
     const header = req.headers.authorization;
@@ -101,587 +111,585 @@ function admin(req, res, next) {
     next();
 }
 
-// --- ENDPOINTY UŻYTKOWNIKÓW ---
-app.post("/register", async (req, res) => {
-    try {
-        const { username, password, name } = req.body;
-        let users = loadUsers();
-        if (users.find(u => u.username === username)) return res.status(400).send("Użytkownik już istnieje");
-        const hash = await bcrypt.hash(password, 10);
-        users.push({ username, password: hash, name: name || "", role: "user", email: "" });
-        saveUsers(users);
-        res.send("Zarejestrowano!");
-    } catch (e) { res.status(500).send("Błąd serwera"); }
-});
-
-app.post("/login", loginLimiter, async (req, res) => {
-    const { username, password } = req.body;
-    let users = loadUsers();
-    const user = users.find(u => u.username === username);
-    if (!user) return res.status(400).send("Brak użytkownika");
-    const ok = await bcrypt.compare(password, user.password);
-    if (!ok) return res.status(400).send("Złe hasło");
-    const token = jwt.sign({ username: user.username, role: user.role }, SECRET, { expiresIn: "7d" });
-    res.json({ token });
-});
-
-app.get("/profil", auth, (req, res) => {
-    const users = loadUsers();
-    const user = users.find(u => u.username === req.user.username);
-    if (!user) return res.status(404).send("User not found");
-    res.json({ username: user.username, name: user.name || "", role: user.role, email: user.email || "" });
-});
-
-app.post("/update-profile", auth, async (req, res) => {
-    const { newName, email, oldPassword, newPassword } = req.body;
-    let users = loadUsers();
-    const user = users.find(u => u.username === req.user.username);
-    if (!user) return res.status(404).json({ message: "Użytkownik nie istnieje" });
-    
-    if (newName && newName.trim() !== "") user.name = newName;
-    
-    if (email !== undefined) {
-        user.email = email.trim(); 
-    }
-
-    if (newPassword && newPassword.trim() !== "") {
-        if (!oldPassword) return res.status(400).json({ message: "Podaj stare hasło" });
-        const passwordMatch = await bcrypt.compare(oldPassword, user.password);
-        if (!passwordMatch) return res.status(401).json({ message: "Stare hasło nieprawidłowe" });
-        user.password = await bcrypt.hash(newPassword, 10);
-    }
-    saveUsers(users);
-    res.json({ message: "Pomyślnie zaktualizowano profil" });
-});
-
-app.post("/promote-global", auth, (req, res) => {
-    const { targetUsername } = req.body;
-    const requesterRole = req.user.role;
-
-    if (requesterRole !== "polska_sigma") return res.status(403).json({ message: "Brak globalnych uprawnień boga!" });
-
-    let users = loadUsers();
-    const user = users.find(u => u.username === targetUsername);
-
-    if (!user) return res.status(404).json({ message: "Nie znaleziono takiego użytkownika w bazie." });
-
-    if (user.role === "user") {
-        user.role = "admin";
-        saveUsers(users);
-        return res.json({ message: `Użytkownik ${targetUsername} został awansowany na Admina!` });
-    } 
-    
-    if (user.role === "admin") {
-        if (requesterRole !== "polska_sigma") return res.status(403).json({ message: "Tylko obecna Polska Sigma może mianować nowe sigmy" });
-        user.role = "polska_sigma";
-        saveUsers(users);
-        return res.json({ message: `Użytkownik ${targetUsername} Został Polską Sigmą` });
-    }
-
-    res.status(400).json({ message: "Ten użytkownik posiada już najwyższą możliwą rangę (Polska Sigma)." });
-});
-
-app.post("/demote-global", auth, (req, res) => {
-    const { targetUsername } = req.body;
-    const requesterUsername = req.user.username;
-
-    if (requesterUsername !== "pomaksik") return res.status(403).json({ message: "Brak uprawnień. Tylko pomaksik posiada moc odbierania rang!" });
-    if (targetUsername === "pomaksik") return res.status(400).json({ message: "Nie możesz zdegradować samego siebie!" });
-
-    let users = loadUsers();
-    const user = users.find(u => u.username === targetUsername);
-
-    if (!user) return res.status(404).json({ message: "Nie znaleziono takiego użytkownika w bazie." });
-
-    if (user.role === "polska_sigma") {
-        user.role = "admin";
-        saveUsers(users);
-        return res.json({ message: `Użytkownik ${targetUsername} został zdegradowany do rangi Admin.` });
-    } 
-    
-    if (user.role === "admin") {
-        user.role = "user";
-        saveUsers(users);
-        return res.json({ message: `Użytkownik ${targetUsername} został zdegradowany do rangi Użytkownik (user).` });
-    }
-
-    res.status(400).json({ message: "Ten użytkownik ma już najniższą możliwą rangę (user)." });
-});
-
-app.post("/create-section", auth, admin, (req, res) => {
-    const { name, code } = req.body;
-    let sections = loadSections();
-    if (sections.find(s => s.code === code)) return res.status(400).json({ message: "Sekcja już istnieje" });
-    const newSection = {
-        name,
-        code,
-        creator: req.user.username,
-        members: [{ username: req.user.username, role: "nauczyciel" }],
-        notes: [],
-        feedbacks: [],
-        questions: []
-    };
-    sections.push(newSection);
-    saveSections(sections);
-    res.json({ message: "Sekcja utworzona pomyślnie!", code });
-});
-
-app.post("/join-section", auth, (req, res) => {
-    const { code } = req.body;
-    let sections = loadSections();
-    const section = sections.find(s => s.code === code);
-    if (!section) return res.status(404).json({ message: "Zły kod sekcji" });
-    
-    if (section.joinEnabled === false) return res.status(403).json({ message: "Dołączanie do tej sekcji zostało zablokowane przez nauczyciela." });
-    if (section.members.find(m => m.username === req.user.username)) return res.status(400).json({ message: "Już tu jesteś!" });
-    
-    section.members.push({ username: req.user.username, role: "user" });
-    saveSections(sections);
-    res.json({ message: "Dołączono do sekcji: " + section.name });
-});
-
-app.get("/moje-sekcje", auth, (req, res) => {
-    const sections = loadSections();
-    const mySections = sections
-        .filter(s => s.members.some(m => m.username === req.user.username))
-        .map(s => ({
-            name: s.name,
-            kod: s.code,
-            rola: s.members.find(m => m.username === req.user.username).role,
-            joinEnabled: s.joinEnabled !== false 
-        }));
-    res.json(mySections);
-});
-
-app.get('/section-members/:code', auth, (req, res) => {
-    const { code } = req.params;
-    let sections = loadSections();
-    let users = loadUsers();
-    const section = sections.find(s => s.code === code);
-
-    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
-
-    const memberDetails = section.members.map(m => {
-        const user = users.find(u => u.username === m.username);
-        return {
-            username: m.username,
-            name: user ? user.name : m.username,
-            role: m.role
-        };
-    });
-    res.json(memberDetails);
-});
-
-// --- LEKCJE / NOTATKI ---
-app.get("/section-notes/:code", auth, (req, res) => {
-    const sections = loadSections();
-    const section = sections.find(s => s.code === req.params.code);
-    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
-    res.json(section.notes || []);
-});
-
-app.post("/toggle-section-join", auth, (req, res) => {
-    const { code } = req.body;
-    let sections = loadSections();
-    const section = sections.find(s => s.code === code);
-    
-    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje." });
-    
-    const member = section.members.find(m => m.username === req.user.username);
-    if (!member || member.role !== "nauczyciel") return res.status(403).json({ message: "Brak uprawnień. Tylko nauczyciel sekcji może to zrobić." });
-
-    section.joinEnabled = section.joinEnabled === false ? true : false;
-    saveSections(sections);
-
-    res.json({ 
-        message: section.joinEnabled ? "Odblokowano dołączanie 🔓" : "Zablokowano dołączanie 🔒", 
-        joinEnabled: section.joinEnabled 
-    });
-});
-
-app.post("/add-note", auth, (req, res) => {
-    const { code, lessonName, link1, link2 } = req.body;
-    let sections = loadSections();
-    const section = sections.find(s => s.code === code);
-    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
-    
-    const member = section.members.find(m => m.username === req.user.username);
-    if (!member || (member.role !== "nauczyciel" && req.user.role !== "admin" && req.user.role !== "polska_sigma")) {
-        return res.status(403).json({ message: "Brak uprawnień" });
-    }
-    
-    if (!section.notes) section.notes = [];
-    section.notes.push({ id: Date.now(), lessonName, link1, link2, date: new Date().toISOString().split('T')[0] });
-    saveSections(sections);
-    res.json({ message: "Notatka dodana!" });
-});
-
-app.delete("/delete-note/:code/:noteId", auth, (req, res) => {
-    const { code, noteId } = req.params;
-    let sections = loadSections();
-    const section = sections.find(s => s.code === code);
-    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
-    
-    const member = section.members.find(m => m.username === req.user.username);
-    const isGod = req.user.role === "admin" || req.user.role === "polska_sigma";
-    
-    if (!isGod && (!member || member.role !== "nauczyciel")) return res.status(403).json({ message: "Brak uprawnień" });
-    
-    section.notes = (section.notes || []).filter(n => n.id.toString() !== noteId.toString());
-    saveSections(sections);
-    res.json({ message: "Usunięto lekcję" });
-});
-
-app.delete("/god/delete-section/:code", auth, godAuth, (req, res) => {
-    let sections = loadSections();
-    const startLength = sections.length;
-    sections = sections.filter(s => s.code !== req.params.code);
-    
-    if (sections.length === startLength) return res.status(404).json({ message: "Nie ma takiej sekcji!" });
-    
-    saveSections(sections);
-    res.json({ message: "Sekcja została CAŁKOWICIE ZNISZCZONA z bazy danych." });
-});
-
-// --- SYSTEM FEEDBACKU ---
-app.post('/add-feedback', auth, (req, res) => {
-    const { code, lessonName, message } = req.body;
-    let sections = loadSections();
-    let users = loadUsers();
-    const section = sections.find(s => s.code === code);
-    const user = users.find(u => u.username === req.user.username);
-
-    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
-
-    const newFeedback = {
-        id: Date.now().toString(),
-        lessonName,
-        message,
-        username: req.user.username,
-        author: user.name || req.user.username,
-        date: new Date().toLocaleString(),
-        edited: false
-    };
-
-    if (!section.feedbacks) section.feedbacks = [];
-    section.feedbacks.push(newFeedback);
-    saveSections(sections);
-
-    res.json({ message: "Feedback dodany!" });
-});
-
-app.get("/section-feedback/:code", auth, (req, res) => {
-    const sections = loadSections();
-    const section = sections.find(s => s.code === req.params.code);
-    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
-    
-    const member = section.members.find(m => m.username === req.user.username);
-    const isTeacher = member && member.role === "nauczyciel";
-    const isAdmin = (req.user.role === "admin" || req.user.role === "polska_sigma");
-    const allFbs = section.feedbacks || [];
-
-    if (isTeacher || isAdmin) {
-        res.json(allFbs);
-    } else {
-        res.json(allFbs.filter(f => f.username === req.user.username));
-    }
-});
-
-app.post('/edit-feedback', auth, (req, res) => {
-    const { code, lessonName, newMessage } = req.body;
-    let sections = loadSections();
-    const section = sections.find(s => s.code === code);
-
-    if (!section || !section.feedbacks) return res.status(404).json({ message: "Błąd sekcji" });
-
-    const fb = section.feedbacks.find(f => f.lessonName === lessonName && f.username === req.user.username);
-
-    if (fb) {
-        fb.message = newMessage;
-        fb.edited = true;
-        fb.date = new Date().toLocaleString() + " (edytowano)";
-        saveSections(sections);
-        return res.json({ message: "Zaktualizowano feedback" });
-    }
-
-    res.status(404).json({ message: "Nie znaleziono Twojej opinii do edycji" });
-});
-
-app.post("/promote-to-teacher", auth, (req, res) => {
-    const { code, targetUsername } = req.body;
-    let sections = loadSections();
-    const section = sections.find(s => s.code === code);
-
-    if (!section) return res.status(404).json({ message: "Nie znaleziono sekcji" });
-
-    const meInSection = section.members.find(m => m.username === req.user.username);
-    const isGlobalAdmin = (req.user.role === "admin" || req.user.role === "polska_sigma");
-    const isSectionTeacher = meInSection && meInSection.role === "nauczyciel";
-
-    if (!(isGlobalAdmin && isSectionTeacher)) return res.status(403).json({ message: "Musisz być jednocześnie Adminem i Nauczycielem sekcji." });
-
-    const targetMember = section.members.find(m => m.username === targetUsername);
-    if (!targetMember) return res.status(404).json({ message: "Użytkownik nie należy do tej sekcji" });
-
-    targetMember.role = "nauczyciel";
-    saveSections(sections);
-    res.json({ message: `Użytkownik ${targetUsername} został mianowany nauczycielem!` });
-});
-
-// --- SYSTEM PYTAŃ ---
-app.post("/ask-question", auth, (req, res) => {
-    const { code, subject, question, recipients } = req.body; 
-    let sections = loadSections();
-    const section = sections.find(s => s.code === code);
-
-    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
-    if (!section.questions) section.questions = [];
-
-    const users = loadUsers();
-    const me = users.find(u => u.username === req.user.username);
-
-    const newQuestion = {
-        id: Date.now().toString(), 
-        from: me.name || me.username,
-        fromUsername: me.username,
-        subject: subject || "Brak tematu",
-        text: question,
-        to: recipients,
-        date: new Date().toLocaleString("pl-PL"),
-        replies: [] 
-    };
-
-    section.questions.push(newQuestion);
-    saveSections(sections);
-
-    process.nextTick(() => {
-        const targetLogins = Array.isArray(recipients) ? recipients : [recipients];
-        
-        targetLogins.forEach(teacherUsername => {
-            const teacherUser = users.find(u => u.username === teacherUsername);
-            
-            if (teacherUser && teacherUser.email && teacherUser.email.trim() !== "") {
-                const mailOptions = {
-                    from: `"Pheme Powiadomienia" <${process.env.EMAIL_USER}>`,
-                    to: teacherUser.email,
-                    subject: `[Pheme] Nowa wiadomość od ${me.name || me.username}!`,
-                    text: `Cześć ${teacherUser.name || teacherUser.username}!\n\nUżytkownik ${me.name || me.username} napisał do Ciebie wiadomość w sekcji ${section.name}:\n\nTemat: "${newQuestion.subject}"\nTreść: "${newQuestion.text}"\n\nZaloguj się do platformy, aby odpowiedzieć:\n${API_URL}`,
-                    html: `<h3>Cześć ${teacherUser.name || teacherUser.username}!</h3>
-                           <p>Użytkownik <strong>${me.name || me.username}</strong> napisał do Ciebie wiadomość w sekcji <strong>${section.name}</strong>:</p>
-                           <blockquote style="border-left: 4px solid #00ce52; padding: 10px; background: #f9f9f9; color: #333;">
-                               <strong>Temat:</strong> ${newQuestion.subject}<br>
-                               <strong>Treść:</strong> ${newQuestion.text}
-                           </blockquote>
-                           <p><a href="${API_URL}/pytania.html">Kliknij tutaj, aby przejść do Centrum Wiadomości i odpowiedzieć</a>.</p>`
-                };
-
-                transporter.sendMail(mailOptions, (error, info) => {
-                    if (error) console.error(`❌ Błąd wysyłania maila do ${teacherUsername}:`, error.message);
-                    else console.log(`✉️ Mail powiadamiający wysłany do ${teacherUsername} (${info.response})`);
-                });
-            } else {
-                console.log(`ℹ️ Nauczyciel ${teacherUsername} nie ma ustawionego e-maila – pomijam powiadomienie.`);
-            }
-        });
-    });
-
-    res.json({ message: "Pytanie wysłane!" });
-});
-
-app.get("/section-questions/:code", auth, (req, res) => {
-    const sections = loadSections();
-    const section = sections.find(s => s.code === req.params.code);
-    if (!section) return res.status(404).json({ message: "Błąd" });
-
-    const allQs = section.questions || [];
-    const myUsername = req.user.username;
-
-    if (req.user.role === "polska_sigma" || req.user.role === "admin") return res.json(allQs);
-
-    const filtered = allQs.filter(q => q.fromUsername === myUsername || q.to.includes(myUsername));
-    res.json(filtered);
-});
-
-app.post("/reply-question", auth, (req, res) => {
-    const { code, questionId, text } = req.body;
-    let sections = loadSections();
-    const section = sections.find(s => s.code === code);
-
-    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
-
-    const question = (section.questions || []).find(q => q.id === questionId || q.id.toString() === questionId);
-    if (!question) return res.status(404).json({ message: "Nie znaleziono wątku" });
-
-    const users = loadUsers();
-    const me = users.find(u => u.username === req.user.username);
-
-    if (!question.replies) question.replies = [];
-
-    // 🔥 TO JEST TEN BRAKUJĄCY FRAGMENT, KTÓRY POWODOWAŁ CRASH SERWERA
-    const replyDate = new Date().toLocaleString("pl-PL");
-
-    question.replies.push({
-        from: me.name || me.username,
-        fromUsername: me.username,
-        text: text,
-        date: replyDate
-    });
-
-    saveSections(sections);
-
-    process.nextTick(() => {
-        let participantsLogins = new Set();
-        participantsLogins.add(question.fromUsername); 
-        
-        if (Array.isArray(question.to)) {
-            question.to.forEach(u => participantsLogins.add(u)); 
-        } else {
-            participantsLogins.add(question.to);
-        }
-        
-        participantsLogins.delete(me.username);
-
-        participantsLogins.forEach(targetUsername => {
-            const targetUser = users.find(u => u.username === targetUsername);
-            
-            if (targetUser && targetUser.email && targetUser.email.trim() !== "") {
-                const mailOptions = {
-                    from: `"Pheme Powiadomienia" <${process.env.EMAIL_USER}>`,
-                    to: targetUser.email,
-                    subject: `[Pheme] Nowa odpowiedź w sekcji: ${section.name}`,
-                    text: `Witaj ${targetUser.name || targetUser.username}!\n\nUżytkownik ${me.name || me.username} odpowiedział na Twoją konwersację w sekcji "${section.name}" (Data: ${replyDate}).\n\nTemat: ${question.subject}\nTreść odpowiedzi: "${text}"\n\nZaloguj się do platformy, aby zobaczyć i odpowiedzieć:\n${API_URL}/pytania.html`,
-                    html: `<h3>Witaj ${targetUser.name || targetUser.username}!</h3>
-                           <p>Użytkownik <strong>${me.name || me.username}</strong> odpowiedział na Twoją konwersację w sekcji <strong>${section.name}</strong> (Data: ${replyDate}).</p>
-                           <p><strong>Temat:</strong> ${question.subject}</p>
-                           <blockquote style="border-left: 4px solid #007bff; padding: 10px; background: #f9f9f9; color: #333;">
-                               <strong>Treść odpowiedzi:</strong><br>${text}
-                           </blockquote>
-                           <p><a href="${API_URL}/pytania.html">Kliknij tutaj, aby przejść do Centrum Wiadomości i odpisać</a>.</p>`
-                };
-
-                transporter.sendMail(mailOptions, (error, info) => {
-                    if (error) console.error(`❌ Błąd wysyłania maila do ${targetUsername}:`, error.message);
-                    else console.log(`✉️ Mail (nowa odpowiedź) wysłany do ${targetUsername}`);
-                });
-            }
-        });
-    });
-    
-    res.json({ message: "Dodano odpowiedź!" });
-});
-
-app.post("/remove-from-section", auth, (req, res) => {
-    const { code, targetUsername } = req.body;
-    const requesterUsername = req.user.username; 
-    const requesterGlobalRole = req.user.role;
-
-    let sections = loadSections();
-    const section = sections.find(s => s.code === code);
-    if (!section) return res.status(404).json({ message: "Nie znaleziono sekcji." });
-
-    const memberInSec = section.members.find(m => m.username === requesterUsername);
-    const isSectionTeacher = memberInSec && memberInSec.role === "nauczyciel";
-    const isGod = requesterGlobalRole === "polska_sigma" || requesterGlobalRole === "admin";
-
-    if (!isGod && !isSectionTeacher) return res.status(403).json({ message: "Brak uprawnień." });
-    if (targetUsername === requesterUsername) return res.status(400).json({ message: "Nie możesz usunąć z sekcji samego siebie w ten sposób." });
-    
-    let users = loadUsers();
-    const targetUser = users.find(u => u.username === targetUsername);
-    if (targetUser && targetUser.role === "polska_sigma") return res.status(403).json({ message: "Żałosna próba. Nie możesz wyrzucić Polskiej Sigmy!" });
-
-    const memberIndex = section.members.findIndex(m => m.username === targetUsername);
-    if (memberIndex === -1) return res.status(404).json({ message: "Użytkownik nie jest w tej sekcji." });
-
-    section.members.splice(memberIndex, 1);
-    saveSections(sections);
-
-    res.json({ message: `Usunięto użytkownika ${targetUsername}.` });
-});
-
-// ==========================================
-// --- PANEL BOGA (SIGMY) ---
-// ==========================================
 function godAuth(req, res, next) {
     if (req.user.role !== "polska_sigma") return res.status(403).json({ message: "Brak uprawnień boskich!" });
     next();
 }
 
-app.get("/god/all-users", auth, godAuth, (req, res) => {
-    const users = loadUsers().map(u => ({ username: u.username, name: u.name, role: u.role, email: u.email })); 
-    res.json(users);
-});
-
-app.get("/god/all-sections", auth, godAuth, (req, res) => {
-    res.json(loadSections());
-});
-
-app.get("/god/all-feedbacks", auth, godAuth, (req, res) => {
-    const sections = loadSections();
-    let allFb = [];
-    sections.forEach(s => {
-        (s.feedbacks || []).forEach(f => {
-            allFb.push({ ...f, sectionCode: s.code, sectionName: s.name });
-        });
-    });
-    res.json(allFb.reverse()); 
-});
-
-app.get("/god/all-questions", auth, godAuth, (req, res) => {
-    const sections = loadSections();
-    let allQ = [];
-    sections.forEach(s => {
-        (s.questions || []).forEach(q => {
-            allQ.push({ ...q, sectionCode: s.code, sectionName: s.name });
-        });
-    });
-    res.json(allQ.reverse()); 
-});
-
-app.post("/god/delete-user", auth, godAuth, (req, res) => {
-    const { targetUsername } = req.body;
-
-    let users = loadUsers();
-    const userIndex = users.findIndex(u => u.username === targetUsername);
-
-    if (userIndex === -1) return res.status(404).json({ message: "Użytkownik nie istnieje w bazie." });
-    if (users[userIndex].role === "admin") return res.status(403).json({ message: "Nie można usuwać innych administratorów." });
-
-    users.splice(userIndex, 1);
-    saveUsers(users);
-
+// --- ENDPOINTY UŻYTKOWNIKÓW ---
+app.post("/register", async (req, res) => {
     try {
-        let sections = loadSections();
-        sections.forEach(s => {
-            s.members = s.members.filter(m => m.username !== targetUsername);
-        });
-        saveSections(sections);
-    } catch (e) {
-        console.error("Błąd podczas usuwania użytkownika z sekcji:", e);
-    }
-
-    res.json({ message: `Użytkownik ${targetUsername} został pomyślnie usunięty.` });
+        const { username, password, name } = req.body;
+        const existingUser = await User.findOne({ username });
+        if (existingUser) return res.status(400).send("Użytkownik już istnieje");
+        
+        const hash = await bcrypt.hash(password, 10);
+        const newUser = new User({ username, password: hash, name: name || "", role: "user", email: "" });
+        await newUser.save();
+        
+        res.send("Zarejestrowano!");
+    } catch (e) { res.status(500).send("Błąd serwera"); }
 });
 
-app.post("/god/force-add-member", auth, godAuth, (req, res) => {
-    const { username, code, role } = req.body;
-    let sections = loadSections();
-    let users = loadUsers();
-    
-    const section = sections.find(s => s.code === code);
-    if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
-    
-    const user = users.find(u => u.username === username);
-    if (!user) return res.status(404).json({ message: "Użytkownik nie istnieje w bazie" });
+app.post("/login", loginLimiter, async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        const user = await User.findOne({ username });
+        if (!user) return res.status(400).send("Brak użytkownika");
+        
+        const ok = await bcrypt.compare(password, user.password);
+        if (!ok) return res.status(400).send("Złe hasło");
+        
+        const token = jwt.sign({ username: user.username, role: user.role }, SECRET, { expiresIn: "7d" });
+        res.json({ token });
+    } catch (e) { res.status(500).send("Błąd serwera"); }
+});
 
-    const existingMember = section.members.find(m => m.username === username);
-    if (existingMember) {
-        existingMember.role = role; 
-    } else {
-        section.members.push({ username, role });
-    }
-    saveSections(sections);
-    res.json({ message: `Użytkownik ${username} został dodany jako ${role} do sekcji ${section.name}` });
+app.get("/profil", auth, async (req, res) => {
+    try {
+        const user = await User.findOne({ username: req.user.username });
+        if (!user) return res.status(404).send("User not found");
+        res.json({ username: user.username, name: user.name || "", role: user.role, email: user.email || "" });
+    } catch (e) { res.status(500).send("Błąd serwera"); }
+});
+
+app.post("/update-profile", auth, async (req, res) => {
+    try {
+        const { newName, email, oldPassword, newPassword } = req.body;
+        const user = await User.findOne({ username: req.user.username });
+        if (!user) return res.status(404).json({ message: "Użytkownik nie istnieje" });
+        
+        if (newName && newName.trim() !== "") user.name = newName;
+        if (email !== undefined) user.email = email.trim(); 
+
+        if (newPassword && newPassword.trim() !== "") {
+            if (!oldPassword) return res.status(400).json({ message: "Podaj stare hasło" });
+            const passwordMatch = await bcrypt.compare(oldPassword, user.password);
+            if (!passwordMatch) return res.status(401).json({ message: "Stare hasło nieprawidłowe" });
+            user.password = await bcrypt.hash(newPassword, 10);
+        }
+        await user.save();
+        res.json({ message: "Pomyślnie zaktualizowano profil" });
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.post("/promote-global", auth, async (req, res) => {
+    try {
+        const { targetUsername } = req.body;
+        const requesterRole = req.user.role;
+
+        if (requesterRole !== "polska_sigma") return res.status(403).json({ message: "Brak globalnych uprawnień boga!" });
+
+        const user = await User.findOne({ username: targetUsername });
+        if (!user) return res.status(404).json({ message: "Nie znaleziono takiego użytkownika w bazie." });
+
+        if (user.role === "user") {
+            user.role = "admin";
+            await user.save();
+            return res.json({ message: `Użytkownik ${targetUsername} został awansowany na Admina!` });
+        } 
+        
+        if (user.role === "admin") {
+            user.role = "polska_sigma";
+            await user.save();
+            return res.json({ message: `Użytkownik ${targetUsername} Został Polską Sigmą` });
+        }
+
+        res.status(400).json({ message: "Ten użytkownik posiada już najwyższą możliwą rangę (Polska Sigma)." });
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.post("/demote-global", auth, async (req, res) => {
+    try {
+        const { targetUsername } = req.body;
+        const requesterUsername = req.user.username;
+
+        if (requesterUsername !== "pomaksik") return res.status(403).json({ message: "Brak uprawnień. Tylko pomaksik posiada moc odbierania rang!" });
+        if (targetUsername === "pomaksik") return res.status(400).json({ message: "Nie możesz zdegradować samego siebie!" });
+
+        const user = await User.findOne({ username: targetUsername });
+        if (!user) return res.status(404).json({ message: "Nie znaleziono takiego użytkownika w bazie." });
+
+        if (user.role === "polska_sigma") {
+            user.role = "admin";
+            await user.save();
+            return res.json({ message: `Użytkownik ${targetUsername} został zdegradowany do rangi Admin.` });
+        } 
+        
+        if (user.role === "admin") {
+            user.role = "user";
+            await user.save();
+            return res.json({ message: `Użytkownik ${targetUsername} został zdegradowany do rangi Użytkownik (user).` });
+        }
+
+        res.status(400).json({ message: "Ten użytkownik ma już najniższą możliwą rangę (user)." });
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+// --- SEKCE ---
+app.post("/create-section", auth, admin, async (req, res) => {
+    try {
+        const { name, code } = req.body;
+        const existingSection = await Section.findOne({ code });
+        if (existingSection) return res.status(400).json({ message: "Sekcja już istnieje" });
+        
+        const newSection = new Section({
+            name,
+            code,
+            creator: req.user.username,
+            members: [{ username: req.user.username, role: "nauczyciel" }],
+            notes: [],
+            feedbacks: [],
+            questions: [],
+            joinEnabled: true
+        });
+        await newSection.save();
+        res.json({ message: "Sekcja utworzona pomyślnie!", code });
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.post("/join-section", auth, async (req, res) => {
+    try {
+        const { code } = req.body;
+        const section = await Section.findOne({ code });
+        if (!section) return res.status(404).json({ message: "Zły kod sekcji" });
+        
+        if (section.joinEnabled === false) return res.status(403).json({ message: "Dołączanie do tej sekcji zostało zablokowane przez nauczyciela." });
+        if (section.members.find(m => m.username === req.user.username)) return res.status(400).json({ message: "Już tu jesteś!" });
+        
+        section.members.push({ username: req.user.username, role: "user" });
+        await section.save();
+        res.json({ message: "Dołączono do sekcji: " + section.name });
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.get("/moje-sekcje", auth, async (req, res) => {
+    try {
+        const sections = await Section.find({ "members.username": req.user.username });
+        const mySections = sections.map(s => ({
+            name: s.name,
+            kod: s.code,
+            rola: s.members.find(m => m.username === req.user.username).role,
+            joinEnabled: s.joinEnabled !== false 
+        }));
+        res.json(mySections);
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.get('/section-members/:code', auth, async (req, res) => {
+    try {
+        const { code } = req.params;
+        const section = await Section.findOne({ code });
+        if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+
+        const usernames = section.members.map(m => m.username);
+        const users = await User.find({ username: { $in: usernames } });
+
+        const memberDetails = section.members.map(m => {
+            const user = users.find(u => u.username === m.username);
+            return {
+                username: m.username,
+                name: user ? user.name : m.username,
+                role: m.role
+            };
+        });
+        res.json(memberDetails);
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+// --- LEKCJE / NOTATKI ---
+app.get("/section-notes/:code", auth, async (req, res) => {
+    try {
+        const section = await Section.findOne({ code: req.params.code });
+        if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+        res.json(section.notes || []);
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.post("/toggle-section-join", auth, async (req, res) => {
+    try {
+        const { code } = req.body;
+        const section = await Section.findOne({ code });
+        if (!section) return res.status(404).json({ message: "Sekcja nie istnieje." });
+        
+        const member = section.members.find(m => m.username === req.user.username);
+        if (!member || member.role !== "nauczyciel") return res.status(403).json({ message: "Brak uprawnień. Tylko nauczyciel sekcji może to zrobić." });
+
+        section.joinEnabled = !section.joinEnabled;
+        await section.save();
+
+        res.json({ 
+            message: section.joinEnabled ? "Odblokowano dołączanie 🔓" : "Zablokowano dołączanie 🔒", 
+            joinEnabled: section.joinEnabled 
+        });
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.post("/add-note", auth, async (req, res) => {
+    try {
+        const { code, lessonName, link1, link2 } = req.body;
+        const section = await Section.findOne({ code });
+        if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+        
+        const member = section.members.find(m => m.username === req.user.username);
+        if (!member || (member.role !== "nauczyciel" && req.user.role !== "admin" && req.user.role !== "polska_sigma")) {
+            return res.status(403).json({ message: "Brak uprawnień" });
+        }
+        
+        section.notes.push({ id: Date.now(), lessonName, link1, link2, date: new Date().toISOString().split('T')[0] });
+        await section.save();
+        res.json({ message: "Notatka dodana!" });
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.delete("/delete-note/:code/:noteId", auth, async (req, res) => {
+    try {
+        const { code, noteId } = req.params;
+        const section = await Section.findOne({ code });
+        if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+        
+        const member = section.members.find(m => m.username === req.user.username);
+        const isGod = req.user.role === "admin" || req.user.role === "polska_sigma";
+        
+        if (!isGod && (!member || member.role !== "nauczyciel")) return res.status(403).json({ message: "Brak uprawnień" });
+        
+        section.notes = section.notes.filter(n => n.id.toString() !== noteId.toString());
+        await section.save();
+        res.json({ message: "Usunięto lekcję" });
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+// POPRAWIONA LOGIKA: Admin NIE MOŻE kasować sekcji, tylko Polska Sigma
+app.delete("/god/delete-section/:code", auth, godAuth, async (req, res) => {
+    try {
+        const result = await Section.deleteOne({ code: req.params.code });
+        if (result.deletedCount === 0) return res.status(404).json({ message: "Nie ma takiej sekcji!" });
+        res.json({ message: "Sekcja została CAŁKOWICIE ZNISZCZONA z bazy danych." });
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+// --- SYSTEM FEEDBACKU ---
+app.post('/add-feedback', auth, async (req, res) => {
+    try {
+        const { code, lessonName, message } = req.body;
+        const section = await Section.findOne({ code });
+        const user = await User.findOne({ username: req.user.username });
+
+        if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+
+        const newFeedback = {
+            id: Date.now().toString(),
+            lessonName,
+            message,
+            username: req.user.username,
+            author: user.name || req.user.username,
+            date: new Date().toLocaleString(),
+            edited: false
+        };
+
+        section.feedbacks.push(newFeedback);
+        await section.save();
+        res.json({ message: "Feedback dodany!" });
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.get("/section-feedback/:code", auth, async (req, res) => {
+    try {
+        const section = await Section.findOne({ code: req.params.code });
+        if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+        
+        const member = section.members.find(m => m.username === req.user.username);
+        const isTeacher = member && member.role === "nauczyciel";
+        const isAdmin = (req.user.role === "admin" || req.user.role === "polska_sigma");
+        const allFbs = section.feedbacks || [];
+
+        if (isTeacher || isAdmin) {
+            res.json(allFbs);
+        } else {
+            res.json(allFbs.filter(f => f.username === req.user.username));
+        }
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.post('/edit-feedback', auth, async (req, res) => {
+    try {
+        const { code, lessonName, newMessage } = req.body;
+        const section = await Section.findOne({ code });
+        if (!section || !section.feedbacks) return res.status(404).json({ message: "Błąd sekcji" });
+
+        const fb = section.feedbacks.find(f => f.lessonName === lessonName && f.username === req.user.username);
+        if (fb) {
+            fb.message = newMessage;
+            fb.edited = true;
+            fb.date = new Date().toLocaleString() + " (edytowano)";
+            section.markModified('feedbacks');
+            await section.save();
+            return res.json({ message: "Zaktualizowano feedback" });
+        }
+        res.status(404).json({ message: "Nie znaleziono Twojej opinii do edycji" });
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.post("/promote-to-teacher", auth, async (req, res) => {
+    try {
+        const { code, targetUsername } = req.body;
+        const section = await Section.findOne({ code });
+        if (!section) return res.status(404).json({ message: "Nie znaleziono sekcji" });
+
+        const meInSection = section.members.find(m => m.username === req.user.username);
+        const isGlobalAdmin = (req.user.role === "admin" || req.user.role === "polska_sigma");
+        const isSectionTeacher = meInSection && meInSection.role === "nauczyciel";
+
+        if (!(isGlobalAdmin && isSectionTeacher)) return res.status(403).json({ message: "Musisz być jednocześnie Adminem i Nauczycielem sekcji." });
+
+        const targetMember = section.members.find(m => m.username === targetUsername);
+        if (!targetMember) return res.status(404).json({ message: "Użytkownik nie należy do tej sekcji" });
+
+        targetMember.role = "nauczyciel";
+        section.markModified('members');
+        await section.save();
+        res.json({ message: `Użytkownik ${targetUsername} został mianowany nauczycielem!` });
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+// --- SYSTEM PYTAŃ ---
+app.post("/ask-question", auth, async (req, res) => {
+    try {
+        const { code, subject, question, recipients } = req.body; 
+        const section = await Section.findOne({ code });
+        if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+
+        const user = await User.findOne({ username: req.user.username });
+        const newQuestion = {
+            id: Date.now().toString(), 
+            from: user.name || user.username,
+            fromUsername: user.username,
+            subject: subject || "Brak tematu",
+            text: question,
+            to: recipients,
+            date: new Date().toLocaleString("pl-PL"),
+            replies: [] 
+        };
+
+        section.questions.push(newQuestion);
+        await section.save();
+
+        process.nextTick(async () => {
+            const targetLogins = Array.isArray(recipients) ? recipients : [recipients];
+            const teachers = await User.find({ username: { $in: targetLogins } });
+            
+            teachers.forEach(teacherUser => {
+                if (teacherUser && teacherUser.email && teacherUser.email.trim() !== "") {
+                    const mailOptions = {
+                        from: `"Pheme Powiadomienia" <${process.env.EMAIL_USER}>`,
+                        to: teacherUser.email,
+                        subject: `[Pheme] Nowa wiadomość od ${user.name || user.username}!`,
+                        text: `Cześć ${teacherUser.name || teacherUser.username}!\n\nUżytkownik ${user.name || user.username} napisał do Ciebie wiadomość w sekcji ${section.name}:\n\nTemat: "${newQuestion.subject}"\nTreść: "${newQuestion.text}"\n\nZaloguj się do platformy, aby odpowiedzieć:\n${API_URL}`,
+                        html: `<h3>Cześć ${teacherUser.name || teacherUser.username}!</h3>
+                               <p>Użytkownik <strong>${user.name || user.username}</strong> napisał do Ciebie wiadomość w sekcji <strong>${section.name}</strong>:</p>
+                               <blockquote style="border-left: 4px solid #00ce52; padding: 10px; background: #f9f9f9; color: #333;">
+                                   <strong>Temat:</strong> ${newQuestion.subject}<br>
+                                   <strong>Treść:</strong> ${newQuestion.text}
+                               </blockquote>
+                               <p><a href="${API_URL}/pytania.html">Kliknij tutaj, aby przejść do Centrum Wiadomości i odpowiedzieć</a>.</p>`
+                    };
+
+                    transporter.sendMail(mailOptions, (error, info) => {
+                        if (error) console.error(`❌ Błąd wysyłania maila do ${teacherUser.username}:`, error.message);
+                        else console.log(`✉️ Mail powiadamiający wysłany do ${teacherUser.username}`);
+                    });
+                }
+            });
+        });
+
+        res.json({ message: "Pytanie wysłane!" });
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.get("/section-questions/:code", auth, async (req, res) => {
+    try {
+        const section = await Section.findOne({ code: req.params.code });
+        if (!section) return res.status(404).json({ message: "Błąd" });
+
+        const allQs = section.questions || [];
+        const myUsername = req.user.username;
+
+        if (req.user.role === "polska_sigma" || req.user.role === "admin") return res.json(allQs);
+
+        const filtered = allQs.filter(q => q.fromUsername === myUsername || q.to.includes(myUsername));
+        res.json(filtered);
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.post("/reply-question", auth, async (req, res) => {
+    try {
+        const { code, questionId, text } = req.body;
+        const section = await Section.findOne({ code });
+        if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+
+        const question = section.questions.find(q => q.id === questionId || q.id.toString() === questionId);
+        if (!question) return res.status(404).json({ message: "Nie znaleziono wątku" });
+
+        const user = await User.findOne({ username: req.user.username });
+        const replyDate = new Date().toLocaleString("pl-PL");
+
+        question.replies.push({
+            from: user.name || user.username,
+            fromUsername: user.username,
+            text: text,
+            date: replyDate
+        });
+
+        section.markModified('questions');
+        await section.save();
+
+        process.nextTick(async () => {
+            let participantsLogins = new Set();
+            participantsLogins.add(question.fromUsername); 
+            if (Array.isArray(question.to)) question.to.forEach(u => participantsLogins.add(u)); 
+            else participantsLogins.add(question.to);
+            
+            participantsLogins.delete(user.username);
+            const targets = await User.find({ username: { $in: Array.from(participantsLogins) } });
+
+            targets.forEach(targetUser => {
+                if (targetUser && targetUser.email && targetUser.email.trim() !== "") {
+                    const mailOptions = {
+                        from: `"Pheme Powiadomienia" <${process.env.EMAIL_USER}>`,
+                        to: targetUser.email,
+                        subject: `[Pheme] Nowa odpowiedź w sekcji: ${section.name}`,
+                        text: `Witaj ${targetUser.name || targetUser.username}!\n\nUżytkownik ${user.name || user.username} odpowiedział na Twoją konwersację w sekcji "${section.name}" (Data: ${replyDate}).\n\nTemat: ${question.subject}\nTreść odpowiedzi: "${text}"\n\nZaloguj się do platformy, aby zobaczyć i odpowiedzieć:\n${API_URL}/pytania.html`,
+                        html: `<h3>Witaj ${targetUser.name || targetUser.username}!</h3>
+                               <p>Użytkownik <strong>${user.name || user.username}</strong> odpowiedział na Twoją konwersację w sekcji <strong>${section.name}</strong> (Data: ${replyDate}).</p>
+                               <p><strong>Temat:</strong> ${question.subject}</p>
+                               <blockquote style="border-left: 4px solid #007bff; padding: 10px; background: #f9f9f9; color: #333;">
+                                   <strong>Treść odpowiedzi:</strong><br>${text}
+                               </blockquote>
+                               <p><a href="${API_URL}/pytania.html">Kliknij tutaj, aby przejść do Centrum Wiadomości i odpisać</a>.</p>`
+                    };
+
+                    transporter.sendMail(mailOptions, (error) => {
+                        if (error) console.error(`❌ Błąd maila do ${targetUser.username}:`, error.message);
+                    });
+                }
+            });
+        });
+        
+        res.json({ message: "Dodano odpowiedź!" });
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.post("/remove-from-section", auth, async (req, res) => {
+    try {
+        const { code, targetUsername } = req.body;
+        const requesterUsername = req.user.username; 
+        const requesterGlobalRole = req.user.role;
+
+        const section = await Section.findOne({ code });
+        if (!section) return res.status(404).json({ message: "Nie znaleziono sekcji." });
+
+        const memberInSec = section.members.find(m => m.username === requesterUsername);
+        const isSectionTeacher = memberInSec && memberInSec.role === "nauczyciel";
+        const isGod = requesterGlobalRole === "polska_sigma" || requesterGlobalRole === "admin";
+
+        if (!isGod && !isSectionTeacher) return res.status(403).json({ message: "Brak uprawnień." });
+        if (targetUsername === requesterUsername) return res.status(400).json({ message: "Nie możesz usunąć z sekcji samego siebie w ten sposób." });
+        
+        const targetUser = await User.findOne({ username: targetUsername });
+        if (targetUser && targetUser.role === "polska_sigma") return res.status(403).json({ message: "Żałosna próba. Nie możesz wyrzucić Polskiej Sigmy!" });
+
+        const memberIndex = section.members.findIndex(m => m.username === targetUsername);
+        if (memberIndex === -1) return res.status(404).json({ message: "Użytkownik nie jest w tej sekcji." });
+
+        section.members.splice(memberIndex, 1);
+        await section.save();
+
+        res.json({ message: `Usunięto użytkownika ${targetUsername}.` });
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+// ==========================================
+// --- PANEL BOGA (SIGMY) --- Only Polska Sigma
+// ==========================================
+app.get("/god/all-users", auth, godAuth, async (req, res) => {
+    try {
+        const users = await User.find({}, 'username name role email');
+        res.json(users);
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.get("/god/all-sections", auth, godAuth, async (req, res) => {
+    try {
+        const sections = await Section.find({});
+        res.json(sections);
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.get("/god/all-feedbacks", auth, godAuth, async (req, res) => {
+    try {
+        const sections = await Section.find({});
+        let allFb = [];
+        sections.forEach(s => {
+            (s.feedbacks || []).forEach(f => {
+                allFb.push({ id: f.id, lessonName: f.lessonName, message: f.message, username: f.username, author: f.author, date: f.date, edited: f.edited, sectionCode: s.code, sectionName: s.name });
+            });
+        });
+        res.json(allFb.reverse()); 
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.get("/god/all-questions", auth, godAuth, async (req, res) => {
+    try {
+        const sections = await Section.find({});
+        let allQ = [];
+        sections.forEach(s => {
+            (s.questions || []).forEach(q => {
+                allQ.push({ id: q.id, from: q.from, fromUsername: q.fromUsername, subject: q.subject, text: q.text, to: q.to, date: q.date, replies: q.replies, sectionCode: s.code, sectionName: s.name });
+            });
+        });
+        res.json(allQ.reverse()); 
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.post("/god/delete-user", auth, godAuth, async (req, res) => {
+    try {
+        const { targetUsername } = req.body;
+
+        const user = await User.findOne({ username: targetUsername });
+        if (!user) return res.status(404).json({ message: "Użytkownik nie istnieje w bazie." });
+        if (user.role === "admin") return res.status(403).json({ message: "Nie można usuwać innych administratorów." });
+
+        await User.deleteOne({ username: targetUsername });
+
+        const sections = await Section.find({ "members.username": targetUsername });
+        for (let s of sections) {
+            s.members = s.members.filter(m => m.username !== targetUsername);
+            await s.save();
+        }
+
+        res.json({ message: `Użytkownik ${targetUsername} został pomyślnie usunięty.` });
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
+});
+
+app.post("/god/force-add-member", auth, godAuth, async (req, res) => {
+    try {
+        const { username, code, role } = req.body;
+        const section = await Section.findOne({ code });
+        if (!section) return res.status(404).json({ message: "Sekcja nie istnieje" });
+        
+        const user = await User.findOne({ username });
+        if (!user) return res.status(404).json({ message: "Użytkownik nie istnieje w bazie" });
+
+        const existingMember = section.members.find(m => m.username === username);
+        if (existingMember) {
+            existingMember.role = role; 
+            section.markModified('members');
+        } else {
+            section.members.push({ username, role });
+        }
+        await section.save();
+        res.json({ message: `Użytkownik ${username} został dodany jako ${role} do sekcji ${section.name}` });
+    } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
 });
 
 const PORT = process.env.PORT || 3000;
