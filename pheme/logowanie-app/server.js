@@ -9,7 +9,8 @@ const rateLimit = require("express-rate-limit");
 const nodemailer = require("nodemailer");
 const fs = require("fs"); // [DODANE] Do czytania pliku users.json
 const path = require("path");
-
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first'); // Bezwzględnie wymusza użycie IPv4 w całym serwerze
 const app = express();
 
 // --- KONFIGURACJA Z .ENV ---
