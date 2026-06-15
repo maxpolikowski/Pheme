@@ -1,4 +1,4 @@
-// server.js - WERSJA Z AUTOMATYCZNĄ MIGRACJĄ UŻYTKOWNIKÓW Z PLIKU users.json
+// server.js - OSTATECZNA WERSJA (MONGODB + MIGRACJA + BREVO API)
 require("dotenv").config();
 const mongoose = require('mongoose');
 const express = require("express");
@@ -6,11 +6,9 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
-const nodemailer = require("nodemailer");
-const fs = require("fs"); // [DODANE] Do czytania pliku users.json
+const fs = require("fs"); 
 const path = require("path");
-const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first'); // Bezwzględnie wymusza użycie IPv4 w całym serwerze
+
 const app = express();
 
 // --- KONFIGURACJA Z .ENV ---
@@ -21,9 +19,40 @@ const API_URL = process.env.API_URL || "https://pheme-far9.onrender.com";
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
       console.log('✅ Połączono z bazą MongoDB! Dane są bezpieczne.');
-      seedUsersFromJSON(); // [DODANE] Uruchomienie migracji po połączeniu z bazą
+      seedUsersFromJSON(); 
   })
   .catch((err) => console.error('❌ Błąd połączenia z MongoDB:', err));
+
+// --- FUNKCJA WYSYŁANIA E-MAILI PRZEZ BREVO API (Omija blokady Rendera) ---
+async function sendBrevoEmail(toEmail, subject, textContent, htmlContent) {
+    try {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'accept': 'application/json',
+                'content-type': 'application/json',
+                'api-key': process.env.BREVO_API_KEY // 🔑 Klucz dodany na Renderze
+            },
+            body: JSON.stringify({
+                // 🔥 WAŻNE: Wpisz tutaj adres e-mail, którym logujesz się do Brevo!
+                sender: { name: "Pheme App", email: "TWÓJ_EMAIL_Z_BREVO@gmail.com" }, 
+                to: [{ email: toEmail }],
+                subject: subject,
+                textContent: textContent,
+                htmlContent: htmlContent
+            })
+        });
+        
+        if (!response.ok) {
+            const errData = await response.json();
+            console.error("❌ Błąd Brevo API:", errData);
+        } else {
+            console.log(`✉️ Mail (Brevo) wysłany pomyślnie do: ${toEmail}`);
+        }
+    } catch (e) {
+        console.error("❌ Błąd połączenia z Brevo:", e);
+    }
+}
 
 // --- MODELE BAZY DANYCH (MONGOOSE SCHEMAS) ---
 const userSchema = new mongoose.Schema({
@@ -39,20 +68,14 @@ const User = mongoose.model('User', userSchema);
 async function seedUsersFromJSON() {
     try {
         const filePath = path.join(__dirname, "users.json");
-        
-        // Sprawdzamy, czy plik users.json w ogóle istnieje na serwerze/GitHubie
         if (fs.existsSync(filePath)) {
             const rawData = fs.readFileSync(filePath, "utf8");
             const localUsers = JSON.parse(rawData);
-            
             let importedCount = 0;
             
             for (const localUser of localUsers) {
-                // Sprawdzamy, czy użytkownik o takim loginie już istnieje w MongoDB
                 const exists = await User.findOne({ username: localUser.username });
-                
                 if (!exists) {
-                    // Jeśli go nie ma, tworzymy go w MongoDB (hasło w users.json jest już zahaszowane, więc przepisujemy je 1:1)
                     const newUser = new User({
                         username: localUser.username,
                         password: localUser.password,
@@ -64,14 +87,13 @@ async function seedUsersFromJSON() {
                     importedCount++;
                 }
             }
-            
             if (importedCount > 0) {
-                console.log(`📥 Sukces! Pomyślnie przeniesiono ${importedCount} użytkowników z users.json do MongoDB.`);
+                console.log(`📥 Sukces! Pomyślnie przeniesiono ${importedCount} użytkowników do MongoDB.`);
             } else {
-                console.log("ℹ️ Wszyscy użytkownicy z pliku users.json są już obecni w MongoDB.");
+                console.log("ℹ️ Wszyscy użytkownicy z pliku users.json są już w MongoDB.");
             }
         } else {
-            console.log("⚠️ Nie znaleziono pliku users.json. Upewnij się, że jest dodany do GitHuba.");
+            console.log("⚠️ Nie znaleziono pliku users.json.");
         }
     } catch (error) {
         console.error("❌ Błąd podczas automatycznego importu kont:", error);
@@ -98,23 +120,6 @@ const sectionSchema = new mongoose.Schema({
     }]
 });
 const Section = mongoose.model('Section', sectionSchema);
-
-// --- KONFIGURACJA E-MAIL ---
-const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, 
-    requireTLS: true,
-    family: 4,     
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    },
-    pool: true,
-    maxConnections: 1,
-    connectionTimeout: 30000,
-    socketTimeout: 30000
-});
 
 app.use(express.json());
 app.use(cors({
@@ -399,7 +404,6 @@ app.delete("/delete-note/:code/:noteId", auth, async (req, res) => {
     } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
 });
 
-// Admin NIE MOŻE kasować sekcji, tylko Polska Sigma
 app.delete("/god/delete-section/:code", auth, godAuth, async (req, res) => {
     try {
         const result = await Section.deleteOne({ code: req.params.code });
@@ -492,7 +496,7 @@ app.post("/promote-to-teacher", auth, async (req, res) => {
     } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
 });
 
-// --- SYSTEM PYTAŃ ---
+// --- SYSTEM PYTAŃ (POWIADOMIENIA BREVO) ---
 app.post("/ask-question", auth, async (req, res) => {
     try {
         const { code, subject, question, recipients } = req.body; 
@@ -520,23 +524,20 @@ app.post("/ask-question", auth, async (req, res) => {
             
             teachers.forEach(teacherUser => {
                 if (teacherUser && teacherUser.email && teacherUser.email.trim() !== "") {
-                    const mailOptions = {
-                        from: `"Pheme Powiadomienia" <${process.env.EMAIL_USER}>`,
-                        to: teacherUser.email,
-                        subject: `[Pheme] Nowa wiadomość od ${user.name || user.username}!`,
-                        text: `Cześć ${teacherUser.name || teacherUser.username}!\n\nUżytkownik ${user.name || user.username} napisał do Ciebie wiadomość w sekcji ${section.name}:\n\nTemat: "${newQuestion.subject}"\nTreść: "${newQuestion.text}"\n\nZaloguj się do platformy, aby odpowiedzieć:\n${API_URL}`,
-                        html: `<h3>Cześć ${teacherUser.name || teacherUser.username}!</h3>
-                               <p>Użytkownik <strong>${user.name || user.username}</strong> napisał do Ciebie wiadomość w sekcji <strong>${section.name}</strong>:</p>
-                               <blockquote style="border-left: 4px solid #00ce52; padding: 10px; background: #f9f9f9; color: #333;">
-                                   <strong>Temat:</strong> ${newQuestion.subject}<br>
-                                   <strong>Treść:</strong> ${newQuestion.text}
-                               </blockquote>
-                               <p><a href="${API_URL}/pytania.html">Kliknij tutaj, aby przejść do Centrum Wiadomości i odpowiedzieć</a>.</p>`
-                    };
+                    
+                    const mailSubject = `[Pheme] Nowa wiadomość od ${user.name || user.username}!`;
+                    const mailText = `Cześć ${teacherUser.name || teacherUser.username}!\n\nUżytkownik ${user.name || user.username} napisał do Ciebie wiadomość w sekcji ${section.name}:\n\nTemat: "${newQuestion.subject}"\nTreść: "${newQuestion.text}"\n\nZaloguj się do platformy, aby odpowiedzieć:\n${API_URL}`;
+                    const mailHtml = `
+                        <h3>Cześć ${teacherUser.name || teacherUser.username}!</h3>
+                        <p>Użytkownik <strong>${user.name || user.username}</strong> napisał do Ciebie wiadomość w sekcji <strong>${section.name}</strong>:</p>
+                        <blockquote style="border-left: 4px solid #00ce52; padding: 10px; background: #f9f9f9; color: #333;">
+                            <strong>Temat:</strong> ${newQuestion.subject}<br>
+                            <strong>Treść:</strong> ${newQuestion.text}
+                        </blockquote>
+                        <p><a href="${API_URL}/pytania.html">Kliknij tutaj, aby przejść do Centrum Wiadomości i odpowiedzieć</a>.</p>
+                    `;
 
-                    transporter.sendMail(mailOptions, (error) => {
-                        if (error) console.error(`❌ Błąd wysyłania maila do ${teacherUser.username}:`, error.message);
-                    });
+                    sendBrevoEmail(teacherUser.email, mailSubject, mailText, mailHtml);
                 }
             });
         });
@@ -593,23 +594,20 @@ app.post("/reply-question", auth, async (req, res) => {
 
             targets.forEach(targetUser => {
                 if (targetUser && targetUser.email && targetUser.email.trim() !== "") {
-                    const mailOptions = {
-                        from: `"Pheme Powiadomienia" <${process.env.EMAIL_USER}>`,
-                        to: targetUser.email,
-                        subject: `[Pheme] Nowa odpowiedź w sekcji: ${section.name}`,
-                        text: `Witaj ${targetUser.name || targetUser.username}!\n\nUżytkownik ${user.name || user.username} odpowiedział na Twoją konwersację w sekcji "${section.name}" (Data: ${replyDate}).\n\nTemat: ${question.subject}\nTreść odpowiedzi: "${text}"\n\nZaloguj się do platformy, aby zobaczyć i odpowiedzieć:\n${API_URL}/pytania.html`,
-                        html: `<h3>Witaj ${targetUser.name || targetUser.username}!</h3>
-                               <p>Użytkownik <strong>${user.name || user.username}</strong> odpowiedział na Twoją konwersację w sekcji <strong>${section.name}</strong> (Data: ${replyDate}).</p>
-                               <p><strong>Temat:</strong> ${question.subject}</p>
-                               <blockquote style="border-left: 4px solid #007bff; padding: 10px; background: #f9f9f9; color: #333;">
-                                   <strong>Treść odpowiedzi:</strong><br>${text}
-                               </blockquote>
-                               <p><a href="${API_URL}/pytania.html">Kliknij tutaj, aby przejść do Centrum Wiadomości i odpisać</a>.</p>`
-                    };
 
-                    transporter.sendMail(mailOptions, (error) => {
-                        if (error) console.error(`❌ Błąd maila do ${targetUser.username}:`, error.message);
-                    });
+                    const mailSubject = `[Pheme] Nowa odpowiedź w sekcji: ${section.name}`;
+                    const mailText = `Witaj ${targetUser.name || targetUser.username}!\n\nUżytkownik ${user.name || user.username} odpowiedział na Twoją konwersację w sekcji "${section.name}" (Data: ${replyDate}).\n\nTemat: ${question.subject}\nTreść odpowiedzi: "${text}"\n\nZaloguj się do platformy, aby zobaczyć i odpowiedzieć:\n${API_URL}/pytania.html`;
+                    const mailHtml = `
+                        <h3>Witaj ${targetUser.name || targetUser.username}!</h3>
+                        <p>Użytkownik <strong>${user.name || user.username}</strong> odpowiedział na Twoją konwersację w sekcji <strong>${section.name}</strong> (Data: ${replyDate}).</p>
+                        <p><strong>Temat:</strong> ${question.subject}</p>
+                        <blockquote style="border-left: 4px solid #007bff; padding: 10px; background: #f9f9f9; color: #333;">
+                            <strong>Treść odpowiedzi:</strong><br>${text}
+                        </blockquote>
+                        <p><a href="${API_URL}/pytania.html">Kliknij tutaj, aby przejść do Centrum Wiadomości i odpisać</a>.</p>
+                    `;
+
+                    sendBrevoEmail(targetUser.email, mailSubject, mailText, mailHtml);
                 }
             });
         });
