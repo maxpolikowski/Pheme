@@ -35,7 +35,7 @@ async function sendBrevoEmail(toEmail, subject, textContent, htmlContent) {
             },
             body: JSON.stringify({
                 // 🔥 WAŻNE: Wpisz tutaj adres e-mail, którym logujesz się do Brevo!
-                sender: { name: "Pheme App", email: "TWÓJ_EMAIL_Z_BREVO@gmail.com" }, 
+                sender: { name: "Pheme App", email: "pheme.panel.studenta@gmail.com" }, 
                 to: [{ email: toEmail }],
                 subject: subject,
                 textContent: textContent,
