@@ -638,9 +638,21 @@ app.post("/reply-question", auth, async (req, res) => {
                     // Zmiana tematu na "Odpisanie na Twoją wiadomość"
                     const mailSubject = `[Pheme] Odpisanie na Twoją wiadomość w wątku: ${question.subject}`;
                     
-                    const mailText = `Witaj ${targetUser.name || targetUser.username}!\n\nUżytkownik ${user.name || user.username} odpowiedział w wątku "${question.subject}".\n\nPełna historia konwersacji:\n${historyText}\n\nAby odpisac, przejdź tutaj: ${API_URL}/pytania.html`;
+                    const mailText = `Witaj ${targetUser.name || targetUser.username}!\n\nUżytkownik ${user.name || user.username} odpowiedział w wątku "${question.subject}".\n\nPełna historia konwersacji:\n${historyText}\n\nAby odpisac, przejdź tutaj: https://maxpolikowski.github.io/Pheme/pheme/strona/pytania.html`;
                     
                     const mailHtml = `
+                                    <!-- EMULACJA PROFILOWEGO W TREŚCI MAILA -->
+                        <div style="display: flex; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #eeeeee; padding-bottom: 15px;">
+                            <img src="https://maxpolikowski.github.io/Pheme/gmailprofile.png" 
+                                alt="Pheme Logo" 
+                                style="width: 45px; height: 45px; border-radius: 50%; margin-right: 12px; object-fit: cover; background: #007bff; display: inline-block; vertical-align: middle;">
+                            <div style="display: inline-block; vertical-align: middle;">
+                                <strong style="font-size: 16px; color: #333;">Pheme - Panel Studenta</strong><br>
+                                <small style="color: #777;">Automatyczny system powiadomień</small>
+                            </div>
+                        </div>
+
+
                         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px;">
                             <h2 style="color: #007bff; margin-top: 0;">Nowa odpowiedź w konwersacji!</h2>
                             <p>Użytkownik <strong>${user.name || user.username}</strong> odpisał w wątku o temacie: <em>"${question.subject}"</em> (sekcja: ${section.name}).</p>
