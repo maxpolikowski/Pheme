@@ -1,4 +1,4 @@
-// server.js - PEŁNY KOD Z INTEGRACJĄ MONGOODB (DANE JUŻ NIGDY NIE ZNIKNĄ)
+// server.js - WERSJA Z AUTOMATYCZNĄ MIGRACJĄ UŻYTKOWNIKÓW Z PLIKU users.json
 require("dotenv").config();
 const mongoose = require('mongoose');
 const express = require("express");
@@ -7,6 +7,8 @@ const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const rateLimit = require("express-rate-limit");
 const nodemailer = require("nodemailer");
+const fs = require("fs"); // [DODANE] Do czytania pliku users.json
+const path = require("path");
 
 const app = express();
 
@@ -14,9 +16,12 @@ const app = express();
 const SECRET = process.env.JWT_SECRET || "tajny_klucz_pheme_default";
 const API_URL = process.env.API_URL || "https://pheme-far9.onrender.com";
 
-// --- POŁĄCZENIE Z MONGOODB ---
+// --- POŁĄCZENIE Z MONGOODB + AUTOMATYCZNY IMPORT STARYCH KONT ---
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ Połączono z bazą MongoDB! Dane są bezpieczne.'))
+  .then(() => {
+      console.log('✅ Połączono z bazą MongoDB! Dane są bezpieczne.');
+      seedUsersFromJSON(); // [DODANE] Uruchomienie migracji po połączeniu z bazą
+  })
   .catch((err) => console.error('❌ Błąd połączenia z MongoDB:', err));
 
 // --- MODELE BAZY DANYCH (MONGOOSE SCHEMAS) ---
@@ -28,6 +33,49 @@ const userSchema = new mongoose.Schema({
     email: { type: String, default: "" }
 });
 const User = mongoose.model('User', userSchema);
+
+// --- FUNKCJA PRZEPISUJĄCA OSOBY Z users.json DO MONGODB ---
+async function seedUsersFromJSON() {
+    try {
+        const filePath = path.join(__dirname, "users.json");
+        
+        // Sprawdzamy, czy plik users.json w ogóle istnieje na serwerze/GitHubie
+        if (fs.existsSync(filePath)) {
+            const rawData = fs.readFileSync(filePath, "utf8");
+            const localUsers = JSON.parse(rawData);
+            
+            let importedCount = 0;
+            
+            for (const localUser of localUsers) {
+                // Sprawdzamy, czy użytkownik o takim loginie już istnieje w MongoDB
+                const exists = await User.findOne({ username: localUser.username });
+                
+                if (!exists) {
+                    // Jeśli go nie ma, tworzymy go w MongoDB (hasło w users.json jest już zahaszowane, więc przepisujemy je 1:1)
+                    const newUser = new User({
+                        username: localUser.username,
+                        password: localUser.password,
+                        name: localUser.name || "",
+                        role: localUser.role || "user",
+                        email: localUser.email || ""
+                    });
+                    await newUser.save();
+                    importedCount++;
+                }
+            }
+            
+            if (importedCount > 0) {
+                console.log(`📥 Sukces! Pomyślnie przeniesiono ${importedCount} użytkowników z users.json do MongoDB.`);
+            } else {
+                console.log("ℹ️ Wszyscy użytkownicy z pliku users.json są już obecni w MongoDB.");
+            }
+        } else {
+            console.log("⚠️ Nie znaleziono pliku users.json. Upewnij się, że jest dodany do GitHuba.");
+        }
+    } catch (error) {
+        console.error("❌ Błąd podczas automatycznego importu kont:", error);
+    }
+}
 
 const sectionSchema = new mongoose.Schema({
     name: String,
@@ -67,14 +115,6 @@ const transporter = nodemailer.createTransport({
     socketTimeout: 30000
 });
 
-transporter.verify((error) => {
-    if (error) {
-        console.error("❌ Błąd konfiguracji E-mail:", error.message);
-    } else {
-        console.log("✅ Serwer e-mail gotowy do wysyłania powiadomień.");
-    }
-});
-
 app.use(express.json());
 app.use(cors({
     origin: "*",
@@ -84,7 +124,6 @@ app.use(cors({
 
 app.use(express.static(__dirname));
 
-// 🔒 Limiter IP
 const loginLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 1000,
@@ -359,7 +398,7 @@ app.delete("/delete-note/:code/:noteId", auth, async (req, res) => {
     } catch (e) { res.status(500).json({ message: "Błąd serwera" }); }
 });
 
-// POPRAWIONA LOGIKA: Admin NIE MOŻE kasować sekcji, tylko Polska Sigma
+// Admin NIE MOŻE kasować sekcji, tylko Polska Sigma
 app.delete("/god/delete-section/:code", auth, godAuth, async (req, res) => {
     try {
         const result = await Section.deleteOne({ code: req.params.code });
@@ -494,9 +533,8 @@ app.post("/ask-question", auth, async (req, res) => {
                                <p><a href="${API_URL}/pytania.html">Kliknij tutaj, aby przejść do Centrum Wiadomości i odpowiedzieć</a>.</p>`
                     };
 
-                    transporter.sendMail(mailOptions, (error, info) => {
+                    transporter.sendMail(mailOptions, (error) => {
                         if (error) console.error(`❌ Błąd wysyłania maila do ${teacherUser.username}:`, error.message);
-                        else console.log(`✉️ Mail powiadamiający wysłany do ${teacherUser.username}`);
                     });
                 }
             });
