@@ -155,6 +155,16 @@
             padding-bottom: 10px;
             margin-bottom: 20px;
         }
+            .reset-btn {
+        border: 2px solid #ff3b3b !important;
+        transition: background 0.3s, color 0.3s;
+    }
+
+    .reset-btn:hover {
+        background-color: #fff !important;
+        color: #ff3b3b !important;
+        cursor: pointer;
+    }
     </style>
 </head>
 <body>
@@ -167,6 +177,9 @@
         <button class="tab-btn" onclick="openTab(event, 'uzytkownicy')">Użytkownicy</button>
         <button class="tab-btn" id="tab-btn-pytania" onclick="openTab(event, 'pytania')">Pytania / Konwersacje</button>
         <button class="tab-btn" id="tab-btn-feedback" onclick="openTab(event, 'feedback')">Ostatnie Feedbacki</button>
+        <button class="tab-btn reset-btn" onclick="resetPlatform()" style="background-color: #ff3b3b; color: white; margin-left: 10px;">
+        ⚠️ RESET
+    </button>
     </div>
 
     <div class="content-card">
@@ -505,7 +518,35 @@
             if (res.ok) loadAll();
         } catch(e) { alert("Błąd odbierania rangi!"); }
     }
+    // 🔥 NOWA FUNKCJA: Całkowity reset platformy
+    async function resetPlatform() {
+        const confirm1 = confirm("⚠️ UWAGA! Czy na pewno chcesz ZRESETOWAĆ CAŁĄ BAZĘ DANYCH?");
+        if (!confirm1) return;
 
+        const confirm2 = prompt('To akcja NIEODWRACALNA. Spowoduje usunięcie wszystkich sekcji i nowych użytkowników.\n\nWpisz słowo "RESET", aby autoryzować zniszczenie:');
+        
+        if (confirm2 !== "RESET") {
+            if (confirm2 !== null) alert("Błędne hasło. Anulowano reset platformy.");
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_URL}/god/reset-platform`, {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + token }
+            });
+            const data = await res.json();
+            
+            alert(data.message);
+            
+            if (res.ok) {
+                // Po zresetowaniu odświeżamy widok, by zobaczyć pustki
+                loadAll();
+            }
+        } catch (e) {
+            alert("Błąd łączenia z serwerem podczas próby resetu platformy!");
+        }
+    }
     window.onload = loadAll;
 </script>
 

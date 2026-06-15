@@ -711,6 +711,23 @@ app.post("/remove-from-section", auth, async (req, res) => {
 // ==========================================
 // --- PANEL BOGA (SIGMY) --- Only Polska Sigma
 // ==========================================
+app.post("/god/reset-platform", auth, godAuth, async (req, res) => {
+    try {
+        // 1. Niszczymy absolutnie wszystkie sekcje (to usuwa też zagnieżdżone w nich notatki, opinie i pytania)
+        await Section.deleteMany({});
+
+        // 2. Niszczymy wszystkich zarejestrowanych użytkowników
+        await User.deleteMany({});
+
+        // 3. Odtwarzamy Świętą Trójcę (i innych użytkowników) z pliku users.json
+        await seedUsersFromJSON();
+
+        res.json({ message: "PLATFORMA ZOSTAŁA ZRESETOWANA! Ocalały tylko konta zapisane w pliku users.json." });
+    } catch (e) { 
+        console.error("Błąd resetowania:", e);
+        res.status(500).json({ message: "Błąd krytyczny serwera podczas resetowania platformy." }); 
+    }
+});
 app.get("/god/all-users", auth, godAuth, async (req, res) => {
     try {
         const users = await User.find({}, 'username name role email');
