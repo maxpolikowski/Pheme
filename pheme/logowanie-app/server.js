@@ -650,7 +650,7 @@ app.post("/reply-question", auth, async (req, res) => {
                             ${historyHtml}
                             
                             <p style="margin-top: 25px;">
-                                <a href="${API_URL}/pytanya.html" 
+                                <a href="https://maxpolikowski.github.io/Pheme/pheme/strona/pytania.html" 
                                    style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
                                    Zobacz w aplikacji i odpowiedz
                                 </a>
