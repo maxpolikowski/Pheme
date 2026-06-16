@@ -334,8 +334,8 @@ function losujKaczki() {
     let pozostałe = numery.filter(n => n !== n1);
     let n2 = pozostałe[Math.floor(Math.random() * pozostałe.length)];
 
-    document.getElementById('duck-img-1').src = `../kaczki/kaczka_${n1}.png`;
-    document.getElementById('duck-img-2').src = `../kaczki/kaczka_${n2}.png`;
+    document.getElementById('duck-img-1').src = `kaczka_${n1}.png`;
+    document.getElementById('duck-img-2').src = `kaczka_${n2}.png`;
 }
 
 window.onload = () => {
