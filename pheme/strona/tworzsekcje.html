@@ -125,6 +125,50 @@
             text-align: center;
             font-weight: bold;
         }
+        /* ========================================= */
+        /* --- NOWE STYLE RESPNSYWNE (TELEFONY) --- */
+        /* ========================================= */
+        @media (max-width: 768px) {
+            .header-bar {
+                margin-bottom: 20px;
+                padding: 12px 0;
+                font-size: 1.1rem;
+            }
+
+            .container {
+                grid-template-columns: 1fr; /* Przełączenie na jedną kolumnę */
+                gap: 20px;
+            }
+
+            .card {
+                order: 1; /* Formularz leci na samą górę ekranu */
+                padding: 25px 20px; /* Zmniejszamy wewnętrzne marginesy karty, żeby zyskać przestrzeń */
+            }
+
+            .sidebar {
+                order: 2; /* Kaczka leci na dół pod formularz */
+                align-items: center;
+            }
+
+            .duck-box {
+                width: 120px; /* Subtelnie pomniejszamy samotną kaczkę na dole */
+            }
+
+            .code-display {
+                flex-direction: column; /* Pole kodu i przycisk lądują jeden pod drugim */
+                align-items: stretch;
+                gap: 12px;
+            }
+
+            .code-display button {
+                width: 100%; /* Przycisk "Generuj" zajmuje pełną szerokość i jest wygodny do kliknięcia */
+            }
+            
+            input {
+                font-size: 1.1rem; /* Delikatnie powiększona czcionka w polach dla lepszej czytelności */
+                text-align: center; /* Wyśrodkowany tekst w polach ułatwia czytanie kodu */
+            }
+        }
     </style>
 </head>
 <body>
