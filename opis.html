@@ -31,7 +31,7 @@
 
             // 2. Tworzymy obrazek
             const img = document.createElement('img');
-            img.src = `../kaczki/kaczka_${numer}.png`;
+            img.src = `kaczka_${numer}.png`;
             img.className = 'zdjecie';
 
             // 3. Tworzymy tekst (miejsce na opis)
@@ -41,7 +41,7 @@
             // --- ŁADOWANIE OPISU Z PLIKU ---
             try {
                 // Ścieżka do Twojego folderu z opisami
-                const odpowiedz = await fetch(`../opisy/opis_${numer}.txt`);
+                const odpowiedz = await fetch(`opis_${numer}.txt`);
                 if (odpowiedz.ok) {
                     const tekst = await odpowiedz.text();
                     p.innerText = tekst; // Wstawia treść z pliku .txt
