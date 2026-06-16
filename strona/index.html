@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pheme - Logowanie</title>
+
+    <style>
+        :root {
+            --primary-green: #00ce52;
+            --bg-gray: #e0e0e0;
+            --dark-gray: #333333;
+            --red-header: #ff3b3b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-gray);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden; /* Zapobiega przewijaniu na boki przez obrócone kaczki */
+        }
+
+        /* GÓRNY PASEK */
+        .header-bar {
+            width: 100%;
+            background: linear-gradient(to right, #ffffff, var(--red-header));
+            text-align: center;
+            padding: 10px 0;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* NAWIGACJA - Tylko przycisk O NAS */
+        .auth-nav {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        .about-btn {
+            padding: 10px 25px;
+            background: var(--dark-gray);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s, opacity 0.2s;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .about-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        /* UKŁAD Z KACZKAMI */
+        .container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex: 1;
+            padding-bottom: 60px;
+        }
+
+        .auth-layout-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 50px;
+            max-width: 1200px;
+            width: 90%;
+        }
+
+        /* RAMKI DLA KACZEK */
+        .duck-floater {
+            flex: 0 0 auto;
+        }
+        .duck-paper {
+            background: white;
+            padding: 15px;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            width: 200px;
+            height: 200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid #ddd;
+        }
+        .duck-img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 10px;
+        }
+
+        #left-duck { transform: rotate(-8deg); }
+        #right-duck { transform: rotate(8deg); }
+
+        /* KARTA LOGOWANIA */
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 30px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            z-index: 10;
+            box-sizing: border-box; /* Zabezpiecza przed wychodzeniem paddingu poza ekran */
+        }
+
+        .card h2 {
+            margin-bottom: 30px;
+            color: #2c3e50;
+            font-size: 1.8rem;
+        }
+
+        .form-group {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+            font-size: 0.9rem;
+        }
+
+        .input-box {
+            display: flex;
+            align-items: center;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 12px 15px;
+            background: #f9f9f9;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+        }
+        .input-box:focus-within {
+            border-color: var(--primary-green);
+        }
+        .input-box span {
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+        .input-box input {
+            border: none;
+            background: transparent;
+            width: 100%;
+            outline: none;
+            font-size: 1rem;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: var(--primary-green);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: opacity 0.2s;
+            box-sizing: border-box;
+        }
+        .submit-btn:hover { opacity: 0.85; }
+
+        .card-footer {
+            margin-top: 25px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .card-footer a {
+            color: var(--primary-green);
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .hidden { display: none !important; }
+
+        /* STOPKA */
+        .footer-credit {
+            position: fixed;
+            bottom: 15px;
+            right: 20px;
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+
+        #wynik {
+            color: #d32f2f;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        /* ========================================= */
+        /* --- NOWE STYLE RESPANSYWNE (TELEFONY) --- */
+        /* ========================================= */
+        @media (max-width: 850px) {
+            .auth-layout-wrapper {
+                flex-direction: column; /* Zmienia ułożenie poziome na pionowe */
+                gap: 25px; /* Zmniejsza przerwę między kaczkami a formularzem */
+            }
+
+            .duck-paper {
+                width: 130px; /* Znacznie mniejsze kaczki na małym ekranie */
+                height: 130px;
+                padding: 10px;
+            }
+
+            .card {
+                padding: 30px 20px; /* Zmniejsza wewnętrzne marginesy karty logowania */
+                width: 90%; 
+            }
+
+            /* Przestawia stopkę, aby nie "wisiała" nad przyciskami na krótkich ekranach */
+            .footer-credit {
+                position: relative;
+                bottom: auto;
+                right: auto;
+                text-align: center;
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header-bar" id="pageTitle">Pheme logowanie</div>
+
+<div class="auth-nav">
+    <a href="onas.html" class="about-btn">o nas</a>
+</div>
+
+<div class="container">
+    <div class="auth-layout-wrapper">
+
+        <div class="duck-floater" id="left-duck">
+            <div class="duck-paper">
+                <img id="duck-img-1" src="" alt="Kaczka" class="duck-img">
+            </div>
+        </div>
+
+        <div class="card">
+            <div id="loginForm">
+                <h2>Witaj z powrotem!</h2>
+                
+                <div class="form-group">
+                    <label>Nazwa użytkownika</label>
+                    <div class="input-box">
+                        <span>👤</span>
+                        <input id="l_user" type="text" placeholder="Wpisz nazwę użytkownika">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Hasło</label>
+                    <div class="input-box">
+                        <span>🔒</span>
+                        <input id="l_pass" type="password" placeholder="Wpisz hasło">
+                    </div>
+                </div>
+
+                <button class="submit-btn" onclick="login()">Zaloguj się</button>
+                
+                <div class="card-footer">
+                    Nie masz jeszcze konta? <a href="#" onclick="toggleAuth(true)">Zarejestruj się!</a>
+                </div>
+            </div>
+
+            <div id="registerForm" class="hidden">
+                <h2>Utwórz konto</h2>
+                
+                <div class="form-group">
+                    <label>Podaj imię</label>
+                    <div class="input-box">
+                        <span>📝</span>
+                        <input id="r_name" type="text" placeholder="Wpisz swoje imię">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>podaj login</label>
+                    <div class="input-box">
+                        <span>👤</span>
+                        <input id="r_user" type="text" placeholder="Wybierz login">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>podaj hasło</label>
+                    <div class="input-box">
+                        <span>🔒</span>
+                        <input id="r_pass" type="password" placeholder="Wybierz hasło">
+                    </div>
+                </div>
+                <button class="submit-btn" onclick="register()">Zarejestruj się</button>
+                <div class="card-footer">
+                    Masz już konto? <a href="#" onclick="toggleAuth(false)">Zaloguj się</a>
+                </div>
+            </div>
+
+            <p id="wynik"></p>
+        </div>
+
+        <div class="duck-floater" id="right-duck">
+            <div class="duck-paper">
+                <img id="duck-img-2" src="" alt="Kaczka" class="duck-img">
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="footer-credit">made with ❤</div>
+
+<script>
+let token = localStorage.getItem("token") || "";
+const API_URL = "https://pheme-far9.onrender.com";
+
+function losujKaczki() {
+    const numery = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 67];
+    
+    // Losowanie dwóch różnych numerów
+    let n1 = numery[Math.floor(Math.random() * numery.length)];
+    let pozostałe = numery.filter(n => n !== n1);
+    let n2 = pozostałe[Math.floor(Math.random() * pozostałe.length)];
+
+    document.getElementById('duck-img-1').src = `../kaczki/kaczka_${n1}.png`;
+    document.getElementById('duck-img-2').src = `../kaczki/kaczka_${n2}.png`;
+}
+
+window.onload = () => {
+    losujKaczki();
+    if (token) setupUI();
+};
+
+function toggleAuth(isReg) {
+    // Przełączanie formularzy
+    document.getElementById("loginForm").classList.toggle("hidden", isReg);
+    document.getElementById("registerForm").classList.toggle("hidden", !isReg);
+    
+    //  Zmiana tekstu w nagłówku
+    const titleEl = document.getElementById("pageTitle");
+    if (isReg) {
+        titleEl.innerText = "Pheme rejestracja";
+    } else {
+        titleEl.innerText = "Pheme logowanie";
+    }
+
+    // Czyszczenie komunikatu o błędach przy przełączaniu
+    document.getElementById("wynik").innerText = "";
+}
+async function login() {
+    const username = document.getElementById("l_user").value.trim();
+    const password = document.getElementById("l_pass").value.trim();
+
+    if (!username || !password) {
+        document.getElementById("wynik").innerText = "Wypełnij pola!";
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/login`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({username, password})
+        });
+
+        if (!res.ok) {
+            document.getElementById("wynik").innerText = await res.text();
+            return;
+        }
+
+        const data = await res.json();
+        localStorage.setItem("token", data.token);
+        window.location.href = "start.html";
+    } catch (e) {
+        document.getElementById("wynik").innerText = "Błąd serwera";
+    }
+}
+
+async function register() {
+    const username = document.getElementById("r_user").value.trim();
+    const password = document.getElementById("r_pass").value.trim();
+    const name = document.getElementById("r_name").value.trim(); // Pobieramy imię
+
+    // Sprawdzamy, czy wszystkie pola są wypełnione
+    if (!username || !password || !name) {
+        document.getElementById("wynik").innerText = "Wypełnij wszystkie pola!";
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/register`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            // Dodajemy 'name' do wysyłanych danych
+            body: JSON.stringify({username, password, name}) 
+        });
+
+        document.getElementById("wynik").innerText = await res.text();
+        if(res.ok) {
+            // Czyścimy pola po udanej rejestracji
+            document.getElementById("r_user").value = "";
+            document.getElementById("r_pass").value = "";
+            document.getElementById("r_name").value = "";
+            toggleAuth(false); // Przełącza z powrotem na logowanie
+        }
+    } catch (e) {
+        document.getElementById("wynik").innerText = "Błąd połączenia";
+    }
+}
+function setupUI() {
+    window.location.href = "start.html";
+}
+</script>
+
+</body>
+</html>

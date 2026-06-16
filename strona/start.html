@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pheme - Panel Studenta</title>
+    <style>
+        :root {
+            --primary-green: #00ce52;
+            --bg-gray: #e0e0e0;
+            --dark-gray: #333333;
+            --red-header: #ff3b3b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-gray);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .header-bar {
+            width: 100%;
+            background: linear-gradient(to right, #ffffff, var(--red-header));
+            text-align: center;
+            padding: 10px 0;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1000px;
+            margin-top: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: var(--primary-green);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.2s;
+            margin: 5px;
+        }
+
+        .nav-menu {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .nav-btn {
+            background: var(--dark-gray);
+            min-width: 100px;
+        }
+
+        .logo-img {
+            max-width: 200px;
+            height: auto;
+            border-radius: 15px;
+            margin: 20px 0;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header-bar">Pheme - START</div>
+
+<div class="container">
+    <div class="nav-menu">
+        <button class="nav-btn" onclick="location.href='start.html'">Start</button>
+        <button class="nav-btn" onclick="location.href='sekcje.html'">Sekcje</button>
+        <button class="nav-btn" onclick="location.href='pytania.html'">Pytania</button>
+        <button class="nav-btn" onclick="location.href='profil.html'">Profil</button>
+        <button class="nav-btn" style="background: #ff3b3b;" onclick="logout()">Wyloguj</button>
+    </div>
+
+    <div class="card">
+
+        <h3 id="welcome">Ładowanie...</h3>
+
+        <p>Wygląda na to, że pomyślnie się zalogowałeś!</p>
+        
+        <a href="opis.html">
+            <img id="random-duck" src="" alt="Kaczka" class="logo-img">
+        </a>
+        <p style="color: #666; font-size: 0.9rem;">Kliknij kaczuszkę, by zobaczyć galerię</p>
+    </div>
+</div>
+
+<script>
+    // Sprawdzamy token przy wejściu na stronę
+    const token = localStorage.getItem("token");
+    if (!token) {
+        window.location.href = "index.html";
+    }
+
+    function logout() {
+        localStorage.removeItem("token");
+        window.location.href = "index.html";
+    }
+
+    // 🔥 Pobieramy imię użytkownika z backendu
+    fetch("https://pheme-far9.onrender.com/profil", {
+        headers: { "Authorization": "Bearer " + token }
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("welcome").innerText =
+            "Witaj, " + (data.name || data.username) + "!";
+
+        // DYNAMICZNE DODAWANIE PRZYCISKU DLA BOGA (SIGMY)
+        if (data.role === "polska_sigma") {
+            const navMenu = document.querySelector(".nav-menu");
+            
+            // Zabezpieczenie przed ponownym dodaniem przycisku przy odświeżaniu danych
+            if (navMenu && !document.getElementById("god-panel-btn")) {
+                const godBtn = document.createElement("button");
+                godBtn.id = "god-panel-btn";
+                godBtn.className = "nav-btn";
+                
+                // Boski, złoty styl idealnie zachowujący strukturę Twojej klasy .nav-btn
+                godBtn.style.background = "linear-gradient(45deg, #ffd700, #ffaa00)";
+                godBtn.style.color = "#000";
+                godBtn.style.border = "2px solid #b8860b";
+                godBtn.style.fontWeight = "bold";
+                godBtn.style.cursor = "pointer";
+                
+                godBtn.innerText = "Panel Sigmy";
+                godBtn.onclick = () => location.href = 'panel_sigmy.html';
+                
+                // Wstrzyknięcie przycisku bezpośrednio do Twojego menu, tuż przed przyciskiem "Wyloguj"
+                navMenu.insertBefore(godBtn, navMenu.lastElementChild);
+            }
+        }
+    });
+
+    // Twoja logika losowania kaczki
+    const numeryKaczek = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 16, 67];
+    const wybranyNumer = numeryKaczek[Math.floor(Math.random() * numeryKaczek.length)];
+    document.getElementById('random-duck').src = `../kaczki/kaczka_${wybranyNumer}.png`;
+</script>
+
+</body>
+</html>
