@@ -113,6 +113,7 @@
             max-width: 420px;
             text-align: center;
             z-index: 10;
+            box-sizing: border-box; /* Zabezpiecza przed wychodzeniem paddingu poza ekran */
         }
 
         .card h2 {
@@ -141,6 +142,7 @@
             padding: 12px 15px;
             background: #f9f9f9;
             transition: border-color 0.3s;
+            box-sizing: border-box;
         }
         .input-box:focus-within {
             border-color: var(--primary-green);
@@ -169,6 +171,7 @@
             cursor: pointer;
             margin-top: 10px;
             transition: opacity 0.2s;
+            box-sizing: border-box;
         }
         .submit-btn:hover { opacity: 0.85; }
 
@@ -198,6 +201,36 @@
             color: #d32f2f;
             margin-top: 15px;
             font-weight: bold;
+        }
+
+        /* ========================================= */
+        /* --- NOWE STYLE RESPANSYWNE (TELEFONY) --- */
+        /* ========================================= */
+        @media (max-width: 850px) {
+            .auth-layout-wrapper {
+                flex-direction: column; /* Zmienia ułożenie poziome na pionowe */
+                gap: 25px; /* Zmniejsza przerwę między kaczkami a formularzem */
+            }
+
+            .duck-paper {
+                width: 130px; /* Znacznie mniejsze kaczki na małym ekranie */
+                height: 130px;
+                padding: 10px;
+            }
+
+            .card {
+                padding: 30px 20px; /* Zmniejsza wewnętrzne marginesy karty logowania */
+                width: 90%; 
+            }
+
+            /* Przestawia stopkę, aby nie "wisiała" nad przyciskami na krótkich ekranach */
+            .footer-credit {
+                position: relative;
+                bottom: auto;
+                right: auto;
+                text-align: center;
+                margin-top: 10px;
+            }
         }
     </style>
 </head>
