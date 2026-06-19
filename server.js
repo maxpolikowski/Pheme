@@ -533,7 +533,7 @@ app.post("/ask-question", auth, async (req, res) => {
                     const mailHtml = `
                         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px;">
                             <h2 style="color: #00ce52; margin-top: 0;">Nowa wiadomość!</h2>
-                            <p>Użytkownik <strong>${user.name || user.username}</strong> rozpoczął nowy wątek v sekcji <strong>${section.name}</strong>:</p>
+                            <p>Użytkownik <strong>${user.name || user.username}</strong> rozpoczął nowy wątek w sekcji <strong>${section.name}</strong>:</p>
                             
                             <div style="background-color: #f9f9f9; border-left: 4px solid #00ce52; padding: 15px; margin: 15px 0;">
                                 <small style="color: #888;">${newQuestion.date}</small><br>
